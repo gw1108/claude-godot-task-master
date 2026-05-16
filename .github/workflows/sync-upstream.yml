@@ -36,33 +36,48 @@ jobs:
           echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
           echo "Fork is $BEHIND commit(s) behind upstream/main"
 
-      - name: Create or update sync branch
+      - name: Skip if a sync PR is already open
         if: steps.check.outputs.behind != '0'
-        run: |
-          git checkout -B sync/upstream origin/main
-          # Attempt the merge; allow conflicts so PR surfaces them
-          git merge --no-edit upstream/main || echo "Merge had conflicts — PR will show them"
-          git push -f origin sync/upstream
-
-      - name: Open PR if not already open
-        if: steps.check.outputs.behind != '0'
+        id: existing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh pr view sync/upstream --json number > /dev/null 2>&1; then
-            gh pr create \
-              --base main \
-              --head sync/upstream \
-              --title "chore: sync with upstream" \
-              --body "Automated merge of \`upstream/main\` into \`main\`.\n\nIf conflicts appear, resolve them on the \`sync/upstream\` branch."
-          else
-            echo "PR already exists; branch was updated above."
+          EXISTING=$(gh pr list --state open --base main --search "head:sync/upstream-" --json headRefName --jq '.[0].headRefName // ""')
+          echo "existing=$EXISTING" >> "$GITHUB_OUTPUT"
+          if [ -n "$EXISTING" ]; then
+            echo "Open sync PR already exists on branch $EXISTING — skipping new sync"
           fi
 
-      - name: Enable auto-merge on the PR
-        if: steps.check.outputs.behind != '0'
+      - name: Compute dated branch name
+        if: steps.check.outputs.behind != '0' && steps.existing.outputs.existing == ''
+        id: branch
+        run: |
+          NAME="sync/upstream-$(date -u +%Y-%m-%d)"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create sync branch
+        if: steps.check.outputs.behind != '0' && steps.existing.outputs.existing == ''
+        run: |
+          git checkout -B "${{ steps.branch.outputs.name }}" origin/main
+          # Attempt the merge; allow conflicts so PR surfaces them
+          git merge --no-edit upstream/main || echo "Merge had conflicts — PR will show them"
+          git push origin "${{ steps.branch.outputs.name }}"
+
+      - name: Open PR
+        if: steps.check.outputs.behind != '0' && steps.existing.outputs.existing == ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr merge sync/upstream --auto --merge || \
+          gh pr create \
+            --base main \
+            --head "${{ steps.branch.outputs.name }}" \
+            --title "chore: sync with upstream (${{ steps.branch.outputs.name }})" \
+            --body "Automated merge of \`upstream/main\` into \`main\`.\n\nIf conflicts appear, resolve them on the \`${{ steps.branch.outputs.name }}\` branch."
+
+      - name: Enable auto-merge on the PR
+        if: steps.check.outputs.behind != '0' && steps.existing.outputs.existing == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge "${{ steps.branch.outputs.name }}" --auto --merge || \
             echo "Auto-merge not enabled — either repo setting is off, or there are conflicts."
