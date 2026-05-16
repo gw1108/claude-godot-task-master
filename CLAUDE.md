@@ -178,3 +178,9 @@ Apply standard software engineering principles:
 - When creating changesets, remember that it's user-facing, meaning we don't have to get into the specifics of the code, but rather mention what the end-user is getting or fixing from this changeset
 - Run `npm run turbo:typecheck` before pushing to ensure TypeScript type checks pass
 - Run `npm run test -w <package-name>` to test a package
+
+## Commiting to Github
+- Don't commit directly to main. Work on feature branches:
+git checkout -b feature/my-change
+git push -u origin feature/my-change
+gh pr create --base main
