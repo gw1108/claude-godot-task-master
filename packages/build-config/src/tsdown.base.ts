@@ -33,7 +33,13 @@ export const baseConfig: Partial<UserConfig> = {
 		splitting: false // Disable code splitting for better stack traces
 	}),
 	// Keep all npm dependencies external (available via node_modules)
-	external: [/^[^@./]/, /^@(?!tm\/)/]
+	// First regex: bare specifiers (not starting with @, ., or /). The negative
+	// lookahead `(?![A-Za-z]:[\\/])` excludes Windows absolute paths like
+	// `C:\foo` that would otherwise be misclassified as external — when rolldown
+	// resolves a local import to an absolute path on Windows, that path must
+	// still be bundled, not externalized.
+	// Second regex: scoped packages except @tm/*.
+	external: [/^(?![A-Za-z]:[\\/])[^@./]/, /^@(?!tm\/)/]
 };
 
 /**
