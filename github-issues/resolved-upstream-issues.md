@@ -1,0 +1,1 @@
+- Issue #1683 — MCP tool responses (next_task, set_task_status, add_task, etc.) now carry the tag passed in the request instead of falling back to the `currentTag` in `.taskmaster/state.json`.
