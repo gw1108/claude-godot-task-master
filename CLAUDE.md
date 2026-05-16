@@ -180,7 +180,7 @@ Apply standard software engineering principles:
 - Run `npm run test -w <package-name>` to test a package
 
 ## Commiting to Github
-- Don't commit directly to main. Work on feature branches:
+- Don't commit directly unless you are on a feature branch:
 git checkout -b feature/my-change
 git push -u origin feature/my-change
 gh pr create --base main
