@@ -726,6 +726,11 @@ function displayHelp() {
 					name: 'research',
 					args: '"<prompt>" [-i=<task_ids>] [-f=<file_paths>] [-c="<context>"] [--tree] [-s=<save_file>] [-d=<detail_level>]',
 					desc: 'Perform AI-powered research queries with project context'
+				},
+				{
+					name: 'clusters',
+					args: '[--diagram <type>] [--tag <name>]',
+					desc: 'Detect and visualize task execution clusters'
 				}
 			]
 		},
@@ -756,7 +761,7 @@ function displayHelp() {
 				},
 				{
 					name: 'tags add',
-					args: '<name> [--description <desc>] [--copy-from <tag>]',
+					args: '<name> [--description <desc>] [--copy-from <tag>] [--from-branch]',
 					desc: 'Create a new tag (--from-branch for git branch name)'
 				},
 				{

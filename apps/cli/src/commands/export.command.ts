@@ -6,7 +6,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
-	AuthManager,
 	FileStorage,
 	type GenerateBriefResult,
 	type InvitationResult,
@@ -136,8 +135,11 @@ export class ExportCommand extends Command {
 	 */
 	private async executeExport(options?: any): Promise<void> {
 		try {
+			// Initialize TmCore first (doesn't require auth)
+			await this.initializeServices();
+
 			// Ensure user is authenticated (will prompt and trigger OAuth if not)
-			const authResult = await ensureAuthenticated({
+			const authResult = await ensureAuthenticated(this.taskMasterCore!.auth, {
 				actionName: 'export tasks to Hamster'
 			});
 
@@ -151,9 +153,6 @@ export class ExportCommand extends Command {
 				}
 				return;
 			}
-
-			// Initialize services
-			await this.initializeServices();
 
 			// Check if a brief is already in context (meaning we're working with remote tasks)
 			const context = this.taskMasterCore!.auth.getContext();
@@ -233,8 +232,13 @@ export class ExportCommand extends Command {
 			}
 
 			const fileStorage = new FileStorage(projectRoot);
-			await fileStorage.initialize();
-			const tagsResult = await fileStorage.getTagsWithStats();
+			let tagsResult;
+			try {
+				await fileStorage.initialize();
+				tagsResult = await fileStorage.getTagsWithStats();
+			} finally {
+				await fileStorage.close();
+			}
 
 			if (!tagsResult.tags || tagsResult.tags.length === 0) {
 				console.log(chalk.yellow('\nNo local tags found in tasks.json.\n'));
@@ -338,8 +342,7 @@ export class ExportCommand extends Command {
 
 			// Force org selection after tag selection
 			// User can choose which org to export to, with current org pre-selected
-			const authManager = AuthManager.getInstance();
-			const orgResult = await ensureOrgSelected(authManager, {
+			const orgResult = await ensureOrgSelected(this.taskMasterCore!.auth, {
 				promptMessage: 'Select an organization to export to:',
 				forceSelection: true
 			});
@@ -391,8 +394,13 @@ export class ExportCommand extends Command {
 
 			spinner = ora('Loading tasks...').start();
 			const fileStorage = new FileStorage(projectRoot);
-			await fileStorage.initialize();
-			const tasks = await fileStorage.loadTasks(options?.tag);
+			let tasks;
+			try {
+				await fileStorage.initialize();
+				tasks = await fileStorage.loadTasks(options?.tag);
+			} finally {
+				await fileStorage.close();
+			}
 			spinner.succeed(`${tasks.length} tasks`);
 
 			if (!tasks || tasks.length === 0) {
@@ -496,8 +504,13 @@ export class ExportCommand extends Command {
 			}
 
 			const fileStorage = new FileStorage(projectRoot);
-			await fileStorage.initialize();
-			const tasks = await fileStorage.loadTasks(options?.tag);
+			let tasks;
+			try {
+				await fileStorage.initialize();
+				tasks = await fileStorage.loadTasks(options?.tag);
+			} finally {
+				await fileStorage.close();
+			}
 
 			if (!tasks || tasks.length === 0) {
 				console.log(
@@ -717,57 +730,62 @@ export class ExportCommand extends Command {
 			return;
 		}
 		const fileStorage = new FileStorage(projectRoot);
-		await fileStorage.initialize();
 
-		const exportPromises: Promise<ExportResult>[] = tags.map(async (tag) => {
-			try {
-				// Load tasks from LOCAL FileStorage to count parent tasks vs subtasks
-				const tasks = await fileStorage.loadTasks(tag);
-				const parentTaskCount = tasks.length;
-				const subtaskCount = tasks.reduce(
-					(acc, t) => acc + (t.subtasks?.length || 0),
-					0
-				);
+		let results: ExportResult[];
+		try {
+			await fileStorage.initialize();
+			const exportPromises: Promise<ExportResult>[] = tags.map(async (tag) => {
+				try {
+					// Load tasks from LOCAL FileStorage to count parent tasks vs subtasks
+					const tasks = await fileStorage.loadTasks(tag);
+					const parentTaskCount = tasks.length;
+					const subtaskCount = tasks.reduce(
+						(acc, t) => acc + (t.subtasks?.length || 0),
+						0
+					);
 
-				const result =
-					await this.taskMasterCore!.integration.generateBriefFromTasks({
-						tag,
-						options: {
-							generateTitle: true,
-							generateDescription: true,
-							preserveHierarchy: true,
-							preserveDependencies: true
-						}
-					});
+					const result =
+						await this.taskMasterCore!.integration.generateBriefFromTasks({
+							tag,
+							options: {
+								generateTitle: true,
+								generateDescription: true,
+								preserveHierarchy: true,
+								preserveDependencies: true
+							}
+						});
 
-				if (result.success && result.brief) {
-					// Track exported tag
-					await this.trackExportedTag(tag, result.brief.id, result.brief.url);
+					if (result.success && result.brief) {
+						// Track exported tag
+						await this.trackExportedTag(tag, result.brief.id, result.brief.url);
+						return {
+							tag,
+							success: true,
+							brief: result.brief,
+							parentTaskCount,
+							subtaskCount
+						};
+					}
 					return {
 						tag,
-						success: true,
-						brief: result.brief,
-						parentTaskCount,
-						subtaskCount
+						success: false,
+						error: result.error?.message || 'Unknown error'
+					};
+				} catch (error: any) {
+					return {
+						tag,
+						success: false,
+						error: error.message || 'Export failed'
 					};
 				}
-				return {
-					tag,
-					success: false,
-					error: result.error?.message || 'Unknown error'
-				};
-			} catch (error: any) {
-				return {
-					tag,
-					success: false,
-					error: error.message || 'Export failed'
-				};
-			}
-		});
+			});
 
-		// Wait for all exports to complete
-		const results = await Promise.all(exportPromises);
-		spinner.stop();
+			// Wait for all exports to complete
+			results = await Promise.all(exportPromises);
+			spinner.stop();
+		} finally {
+			await fileStorage.close();
+		}
 
 		// Display results
 		const successful = results.filter((r) => r.success);
@@ -991,13 +1009,10 @@ export class ExportCommand extends Command {
 		try {
 			if (!this.taskMasterCore) return;
 
-			// Get AuthManager singleton
-			const authManager = AuthManager.getInstance();
-
 			// Use the selectBriefFromInput utility which properly resolves
 			// the brief and sets all context fields (org, brief details, etc.)
 			const result = await selectBriefFromInput(
-				authManager,
+				this.taskMasterCore!.auth,
 				briefUrl,
 				this.taskMasterCore
 			);
