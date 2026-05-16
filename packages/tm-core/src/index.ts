@@ -194,10 +194,29 @@ export {
 	type WorkflowServiceOptions
 } from './modules/workflow/services/workflow.service.js';
 export type { SubtaskInfo } from './modules/workflow/types.js';
+export {
+	ClusterPRIntegration,
+	type ClusterPRIntegrationOptions,
+	type ClusterCompletionEvent,
+	type PRIntegrationResult
+} from './modules/workflow/services/cluster-pr-integration.js';
 
 // Git - Advanced
 export { GitAdapter } from './modules/git/adapters/git-adapter.js';
 export { CommitMessageGenerator } from './modules/git/services/commit-message-generator.js';
+export {
+	GitHubPRService,
+	type PRClusterInput,
+	type PRCreationResult,
+	type CreatePROptions,
+	type ClusterPRMapping
+} from './modules/git/services/github-pr.service.js';
+export {
+	PRBodyFormatter,
+	type PRBodyFormatterOptions,
+	type CommitInfo,
+	type TestPhaseResult
+} from './modules/git/services/pr-body-formatter.js';
 
 // Tasks - Advanced
 export { PreflightChecker } from './modules/tasks/services/preflight-checker.service.js';
@@ -246,6 +265,68 @@ export {
 	PROMPT_STATE_KEY,
 	PROMPT_STATE_VERSION
 } from './modules/prompts/constants.js';
+
+// Cluster - Advanced
+export type * from './modules/cluster/types.js';
+export {
+	ClusterDetectionService,
+	ParallelExecutorService,
+	ClusterSequencerService,
+	ProgressTrackerService,
+	TagOrchestratorService,
+	ProjectOrchestratorService,
+	type ResourceConstraints,
+	type TaskExecutor,
+	type ClusterExecutionOptions,
+	type ClusterSequencerResult,
+	type ExecutionProgress,
+	type TagExecutionOptions,
+	type TagExecutionResult,
+	type ProjectExecutionOptions,
+	type ProjectExecutionResult,
+	type TagWithDependencies,
+	TagClusterService,
+	type TagDependency,
+	type TagCluster,
+	type TagClusterResult,
+	ClusterExecutionDomain,
+	type ClusterStartOptions,
+	type ExecutionPlan,
+	type CheckpointInfo,
+	PromptBuilderService,
+	type PromptContext,
+	ClusterGenerationService,
+	type TagAnalysisInput,
+	type ClusterGenerationProgress,
+	type ProgressCallback,
+	type ClusterLevel,
+	type ClusterSuggestion
+} from './modules/cluster/index.js';
+
+// AI Module (generic infrastructure)
+export {
+	BridgedStructuredGenerator,
+	PromptBuilder,
+	loadGenerateObjectService,
+	type IStructuredGenerator,
+	type AIPrimitiveOptions,
+	type AIPrimitiveResult,
+	type GenerateObjectServiceFn
+} from './modules/ai/index.js';
+
+// Cluster Generation (domain-specific AI logic)
+export {
+	BridgedTagSemanticAnalyzer,
+	BridgedTagDependencySynthesizer,
+	TagAnalysisCache,
+	type CacheStorage,
+	type CacheFile,
+	type CachedEntry,
+	type ITagSemanticAnalyzer,
+	type ITagDependencySynthesizer,
+	type SemanticAnalysis,
+	type DependencySuggestion
+} from './modules/cluster/generation/index.js';
 
 // ========== Testing Utilities ==========
 
