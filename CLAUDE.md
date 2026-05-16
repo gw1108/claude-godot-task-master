@@ -184,3 +184,4 @@ Apply standard software engineering principles:
 git checkout -b feature/my-change
 git push -u origin feature/my-change
 gh pr create --base main
+gh pr merge --auto --squash
