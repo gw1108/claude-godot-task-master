@@ -7,6 +7,12 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+# Precondition: task-master CLI must be installed (used by the loop prompt)
+if ! command -v task-master >/dev/null 2>&1; then
+  echo "task-master CLI not found. Install with: npm i -g task-master-ai" >&2
+  exit 1
+fi
+
 # Cold start check - test if sandbox auth is ready
 echo "Checking sandbox auth..."
 test_result=$(docker sandbox run claude -p "Say OK" 2>&1) || true
@@ -28,8 +34,6 @@ for ((i=1; i<=$1; i++)); do
   echo "━━━ Iteration $i of $1 ━━━"
 
   result=$(docker sandbox run claude -p "@.taskmaster/tasks/tasks.json @.taskmaster/loop-progress.txt @CLAUDE.md \
-SETUP: If task-master command not found, run: npm i -g task-master-ai \
-\
 TASK: Implement ONE task/subtask for the tm loop feature. \
 \
 PROCESS: \

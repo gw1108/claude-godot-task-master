@@ -36,6 +36,47 @@ export class LoopService {
 		return this._isRunning;
 	}
 
+	/**
+	 * Check if the task-master CLI is available on the host.
+	 *
+	 * The default preset's prompt instructs the LLM to invoke `task-master`
+	 * commands every iteration. Verifying availability once up front lets us
+	 * fail fast with a clear install instruction, instead of paying tokens
+	 * every iteration on a SETUP line the LLM cannot usefully act on.
+	 */
+	checkTaskMasterAvailable(): { available: boolean; error?: string } {
+		const result = spawnSync('task-master', ['--version'], {
+			cwd: this.projectRoot,
+			timeout: 10000,
+			encoding: 'utf-8',
+			stdio: ['ignore', 'pipe', 'pipe']
+		});
+
+		if (result.error) {
+			const code = (result.error as NodeJS.ErrnoException).code;
+			if (code === 'ENOENT') {
+				return {
+					available: false,
+					error:
+						'task-master CLI not found. Install with: npm i -g task-master-ai'
+				};
+			}
+			return {
+				available: false,
+				error: `Failed to check task-master: ${result.error.message}`
+			};
+		}
+
+		if (result.status !== 0) {
+			return {
+				available: false,
+				error: `task-master --version exited with code ${result.status}. Try reinstalling: npm i -g task-master-ai`
+			};
+		}
+
+		return { available: true };
+	}
+
 	/** Check if Docker sandbox auth is ready */
 	checkSandboxAuth(): { ready: boolean; error?: string } {
 		const result = spawnSync(
@@ -124,6 +165,26 @@ export class LoopService {
 				finalStatus: 'error',
 				errorMessage: errorMsg
 			};
+		}
+
+		// The default preset's prompt drives task-master commands every iteration.
+		// Verify the CLI is on PATH once up front so we fail fast with install
+		// instructions instead of embedding setup guidance in every prompt.
+		// Skip in sandbox mode: the host check doesn't reflect what's inside
+		// the Docker container that actually runs Claude.
+		if (config.prompt === 'default' && !config.sandbox) {
+			const tmCheck = this.checkTaskMasterAvailable();
+			if (!tmCheck.available) {
+				const errorMsg = tmCheck.error || 'task-master CLI not available';
+				this.reportError(config.callbacks, errorMsg);
+				return {
+					iterations: [],
+					totalIterations: 0,
+					tasksCompleted: 0,
+					finalStatus: 'error',
+					errorMessage: errorMsg
+				};
+			}
 		}
 
 		this._isRunning = true;
