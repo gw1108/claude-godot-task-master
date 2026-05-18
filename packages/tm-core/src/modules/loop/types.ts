@@ -18,11 +18,16 @@ export type LoopPreset =
  * the service stays focused on business logic.
  *
  * Callback modes:
- * - `onIterationStart`, `onIterationEnd`, `onError`, `onStderr`: Called in both verbose and non-verbose modes
+ * - `onLoopStart`, `onLoopEnd`, `onIterationStart`, `onIterationEnd`, `onError`, `onStderr`: Called in both verbose and non-verbose modes
  * - `onText`, `onToolUse`: Called only in VERBOSE mode (--verbose flag)
  * - `onOutput`: Called only in NON-VERBOSE mode (default)
+ *
+ * Presentation layers decide whether to render `onLoopStart`/`onLoopEnd` —
+ * the CLI prints them only when verbose so quiet runs stay quiet.
  */
 export interface LoopOutputCallbacks {
+	/** Called once when the loop begins, before any iteration runs */
+	onLoopStart?: (startedAt: Date, totalIterations: number) => void;
 	/** Called at the start of each iteration (both modes) */
 	onIterationStart?: (iteration: number, total: number) => void;
 	/** Called when Claude outputs text (VERBOSE MODE ONLY) */
@@ -37,6 +42,8 @@ export interface LoopOutputCallbacks {
 	onOutput?: (output: string) => void;
 	/** Called at the end of each iteration with the result (both modes) */
 	onIterationEnd?: (iteration: LoopIteration) => void;
+	/** Called once when the loop finishes (success, early exit, or error) */
+	onLoopEnd?: (finishedAt: Date, totalDuration: number) => void;
 }
 
 /**
@@ -129,4 +136,10 @@ export interface LoopResult {
 	finalStatus: 'all_complete' | 'max_iterations' | 'blocked' | 'error';
 	/** Error message when finalStatus is 'error' (optional) */
 	errorMessage?: string;
+	/** ISO-8601 timestamp when the loop started */
+	startedAt?: string;
+	/** ISO-8601 timestamp when the loop finished */
+	finishedAt?: string;
+	/** Total wall-clock duration of the loop in milliseconds (includes inter-iteration sleeps) */
+	totalDuration?: number;
 }
