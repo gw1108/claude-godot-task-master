@@ -55,6 +55,25 @@ marked.setOptions({
 });
 
 /**
+ * Strip markdown code regions (fenced blocks and inline code) so that
+ * angle brackets inside code are not mistaken for HTML tags.
+ */
+function stripCodeRegions(content: string): string {
+	return content
+		.replace(/```[\s\S]*?```/g, '')
+		.replace(/~~~[\s\S]*?~~~/g, '')
+		.replace(/`[^`\n]*`/g, '');
+}
+
+/**
+ * Detect HTML tags in content, ignoring anything inside markdown code blocks.
+ * Requires a tag to start with a letter so expressions like `a < b` don't match.
+ */
+export function containsHtml(content: string): boolean {
+	return /<\/?[a-zA-Z][^<>]*>/.test(stripCodeRegions(content));
+}
+
+/**
  * Convert HTML content to Markdown, then render for terminal
  * Handles tiptap HTML from Hamster gracefully
  */
@@ -68,8 +87,9 @@ export function renderContent(content: string): string {
 		.replace(/\\t/g, '\t')
 		.replace(/\\"/g, '"');
 
-	// Check if content has HTML tags - if so, convert to markdown first
-	if (/<[^>]+>/.test(cleaned)) {
+	// Check if content has HTML tags - if so, convert to markdown first.
+	// Angle brackets inside code blocks (e.g. JSX/TSX) must not trigger this.
+	if (containsHtml(cleaned)) {
 		cleaned = turndownService.turndown(cleaned);
 	}
 
