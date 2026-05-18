@@ -972,6 +972,66 @@ function getComplexityWithColor(score) {
 }
 
 /**
+ * Render a complexity distribution histogram (scores 1–10) and a
+ * Low (<5) / Medium (5–7) / High (≥8) summary line to the console.
+ *
+ * @param {Array<{ complexityScore?: number }>} complexityAnalysis - Entries from a complexity report
+ * @param {Object} [options]
+ * @param {number} [options.maxBarWidth=40] - Max width of the longest bar in characters
+ * @returns {{ counts: number[], buckets: { low: number, medium: number, high: number }, total: number }} Stats used for the chart
+ */
+function renderComplexityHistogram(complexityAnalysis, options = {}) {
+	const { maxBarWidth = 40 } = options;
+	const entries = Array.isArray(complexityAnalysis) ? complexityAnalysis : [];
+
+	// counts[i] holds the number of tasks at score i (1..10). Index 0 is unused.
+	const counts = Array.from({ length: 11 }, () => 0);
+	let total = 0;
+	for (const entry of entries) {
+		const raw = entry?.complexityScore;
+		const score = typeof raw === 'number' ? raw : Number(raw);
+		if (raw == null || !Number.isFinite(score)) continue;
+		const bucket = Math.max(1, Math.min(10, Math.round(score)));
+		counts[bucket] += 1;
+		total += 1;
+	}
+
+	const buckets = {
+		low: counts.slice(1, 5).reduce((a, b) => a + b, 0),
+		medium: counts.slice(5, 8).reduce((a, b) => a + b, 0),
+		high: counts.slice(8, 11).reduce((a, b) => a + b, 0)
+	};
+
+	if (total === 0) {
+		console.log(chalk.gray('\nNo complexity scores to display.'));
+		return { counts, buckets, total };
+	}
+
+	const peak = Math.max(...counts);
+	const scale = peak > maxBarWidth ? maxBarWidth / peak : 1;
+	const colorForScore = (score) => {
+		if (score < 5) return chalk.green;
+		if (score < 8) return chalk.yellow;
+		return chalk.red;
+	};
+
+	console.log(chalk.bold(`\nComplexity distribution (${total} tasks)`));
+	for (let score = 1; score <= 10; score++) {
+		const count = counts[score];
+		const barLen = count === 0 ? 0 : Math.max(1, Math.round(count * scale));
+		const bar = '█'.repeat(barLen);
+		const label = String(score).padStart(2, ' ');
+		const coloredBar = bar ? colorForScore(score)(bar) : '';
+		console.log(`${label} | ${coloredBar} ${count}`);
+	}
+	console.log(
+		`\n${chalk.green(`Low: ${buckets.low}`)}   ${chalk.yellow(`Medium: ${buckets.medium}`)}   ${chalk.red(`High: ${buckets.high}`)}`
+	);
+
+	return { counts, buckets, total };
+}
+
+/**
  * Truncate a string to a maximum length and add ellipsis if needed
  * @param {string} str - The string to truncate
  * @param {number} maxLength - Maximum length
@@ -2852,6 +2912,7 @@ export {
 	formatDependenciesWithStatus,
 	displayHelp,
 	getComplexityWithColor,
+	renderComplexityHistogram,
 	displayNextTask,
 	displayTaskById,
 	displayComplexityReport,

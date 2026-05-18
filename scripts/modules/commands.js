@@ -129,6 +129,7 @@ import {
 	displaySubtaskMoveError,
 	displayTaggedTasksFYI,
 	getStatusWithColor,
+	renderComplexityHistogram,
 	startLoadingIndicator,
 	stopLoadingIndicator
 } from './ui.js';
@@ -965,6 +966,15 @@ function registerCommands(programInstance) {
 			'Use Perplexity AI for research-backed task generation, providing more comprehensive and accurate task breakdown'
 		)
 		.option('--tag <tag>', 'Specify tag context for task operations')
+		.option(
+			'--analyze-complexity',
+			'After generating tasks, analyze their complexity and render a distribution chart'
+		)
+		.option(
+			'--complexity-threshold <n>',
+			'Complexity score threshold for expansion recommendation (1-10)',
+			'5'
+		)
 		.action(async (file, options) => {
 			// Resolve PRD path: prioritize --input option, then positional argument
 			const prdPath = options.input || file;
@@ -1076,6 +1086,29 @@ function registerCommands(programInstance) {
 				const outputPath =
 					taskMaster.getTasksPath() ||
 					path.join(taskMaster.getProjectRoot(), TASKMASTER_TASKS_FILE);
+
+				// In append mode, capture the highest existing task ID before parse-prd
+				// so we can scope auto-analyze to only the newly-added tasks.
+				const autoAnalyze = options.analyzeComplexity || false;
+				const complexityThreshold = parseFloat(
+					options.complexityThreshold || '5'
+				);
+				let prevMaxId = 0;
+				if (autoAnalyze && useAppend && fs.existsSync(outputPath)) {
+					try {
+						const existing = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+						const existingTasks = existing?.[tag]?.tasks || [];
+						for (const t of existingTasks) {
+							if (typeof t.id === 'number' && t.id > prevMaxId) {
+								prevMaxId = t.id;
+							}
+						}
+					} catch (_) {
+						// If we can't read the existing tasks, fall back to "all tasks"
+						prevMaxId = 0;
+					}
+				}
+
 				await parsePRD(taskMaster.getPrdPath(), outputPath, numTasks, {
 					append: useAppend,
 					force: useForce,
@@ -1083,6 +1116,48 @@ function registerCommands(programInstance) {
 					projectRoot: taskMaster.getProjectRoot(),
 					tag: tag
 				});
+
+				if (autoAnalyze) {
+					try {
+						console.log(
+							chalk.blue('\nAnalyzing complexity of generated tasks...')
+						);
+
+						// Determine the ID range to analyze. In append mode, scope to
+						// the newly-added tasks; otherwise analyze every task in the tag.
+						const analyzeOptions = {
+							file: outputPath,
+							output: taskMaster.getComplexityReportPath(),
+							threshold: complexityThreshold,
+							research: research,
+							projectRoot: taskMaster.getProjectRoot(),
+							tag: tag
+						};
+						if (useAppend && prevMaxId > 0) {
+							analyzeOptions.from = prevMaxId + 1;
+						}
+
+						await analyzeTaskComplexity(analyzeOptions);
+
+						// Render the histogram from the freshly-written report.
+						const reportPath = taskMaster.getComplexityReportPath();
+						if (fs.existsSync(reportPath)) {
+							const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+							renderComplexityHistogram(report.complexityAnalysis || []);
+						}
+					} catch (analyzeError) {
+						console.log(
+							chalk.yellow(
+								`\n⚠️  Complexity analysis failed: ${analyzeError.message}`
+							)
+						);
+						console.log(
+							chalk.yellow(
+								'Tasks were generated successfully. Run `task-master analyze-complexity` to retry.'
+							)
+						);
+					}
+				}
 			} catch (error) {
 				console.error(chalk.red(`Error parsing PRD: ${error.message}`));
 				process.exit(1);

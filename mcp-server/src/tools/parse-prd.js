@@ -3,6 +3,8 @@
  * Tool to parse PRD document and generate tasks
  */
 
+import fs from 'fs';
+import path from 'path';
 import {
 	checkProgressCapability,
 	createErrorResponse,
@@ -16,7 +18,40 @@ import {
 	TASKMASTER_DOCS_DIR,
 	TASKMASTER_TASKS_FILE
 } from '../../../src/constants/paths.js';
-import { parsePRDDirect } from '../core/task-master-core.js';
+import { resolveComplexityReportOutputPath } from '../../../src/utils/path-utils.js';
+import {
+	analyzeTaskComplexityDirect,
+	parsePRDDirect
+} from '../core/task-master-core.js';
+
+/**
+ * Resolve the output tasks.json path the same way parsePRDDirect does, so we
+ * can read the pre-existing task list before parse-prd runs (needed to scope
+ * auto-analyze to newly-added tasks in append mode).
+ */
+function resolveTasksOutputPath(args) {
+	if (args.output) {
+		return path.isAbsolute(args.output)
+			? args.output
+			: path.resolve(args.projectRoot, args.output);
+	}
+	return path.resolve(args.projectRoot, TASKMASTER_TASKS_FILE);
+}
+
+function getMaxTaskIdForTag(tasksPath, tag) {
+	if (!fs.existsSync(tasksPath)) return 0;
+	try {
+		const data = JSON.parse(fs.readFileSync(tasksPath, 'utf8'));
+		const tasks = data?.[tag]?.tasks || [];
+		let max = 0;
+		for (const t of tasks) {
+			if (typeof t.id === 'number' && t.id > max) max = t.id;
+		}
+		return max;
+	} catch (_) {
+		return 0;
+	}
+}
 
 /**
  * Register the parse_prd tool
@@ -63,7 +98,24 @@ export function registerParsePRDTool(server) {
 			append: z
 				.boolean()
 				.optional()
-				.describe('Append generated tasks to existing file.')
+				.describe('Append generated tasks to existing file.'),
+			analyzeComplexity: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe(
+					'After generating tasks, run complexity analysis on them and include a summary in the response. Inherits research mode from parse-prd.'
+				),
+			complexityThreshold: z.coerce
+				.number()
+				.int()
+				.min(1)
+				.max(10)
+				.optional()
+				.default(5)
+				.describe(
+					'Complexity score threshold (1-10) to recommend expansion. Only used when analyzeComplexity is true.'
+				)
 		}),
 		annotations: {
 			title: 'Parse PRD',
@@ -80,6 +132,18 @@ export function registerParsePRDTool(server) {
 						reportProgress,
 						log
 					);
+
+					// Capture the pre-existing max task ID so we can scope auto-analyze
+					// to the newly-added tasks when running in append mode.
+					let prevMaxId = 0;
+					if (args.analyzeComplexity && args.append) {
+						const tasksOutputPath = resolveTasksOutputPath({
+							...args,
+							projectRoot: args.projectRoot
+						});
+						prevMaxId = getMaxTaskIdForTag(tasksOutputPath, resolvedTag);
+					}
+
 					const result = await parsePRDDirect(
 						{
 							...args,
@@ -88,6 +152,55 @@ export function registerParsePRDTool(server) {
 						log,
 						{ session, reportProgress: progressCapability }
 					);
+
+					if (args.analyzeComplexity && result?.success) {
+						try {
+							const tasksJsonPath = result.data.outputPath;
+							const reportOutputPath = resolveComplexityReportOutputPath(
+								undefined,
+								{ projectRoot: args.projectRoot, tag: resolvedTag },
+								log
+							);
+
+							// Ensure the report directory exists.
+							const reportDir = path.dirname(reportOutputPath);
+							if (!fs.existsSync(reportDir)) {
+								fs.mkdirSync(reportDir, { recursive: true });
+							}
+
+							const analyzeArgs = {
+								tasksJsonPath,
+								outputPath: reportOutputPath,
+								threshold: args.complexityThreshold,
+								research: args.research === true,
+								projectRoot: args.projectRoot,
+								tag: resolvedTag
+							};
+							if (args.append && prevMaxId > 0) {
+								analyzeArgs.from = prevMaxId + 1;
+							}
+
+							const analyzeResult = await analyzeTaskComplexityDirect(
+								analyzeArgs,
+								log,
+								{ session }
+							);
+
+							if (analyzeResult?.success) {
+								result.data.complexityAnalysis = {
+									reportPath: analyzeResult.data.reportPath,
+									reportSummary: analyzeResult.data.reportSummary
+								};
+							} else {
+								result.data.complexityAnalysisWarning = `Complexity analysis failed: ${analyzeResult?.error?.message || 'unknown error'}. Run analyze_project_complexity to retry.`;
+								log.warn(result.data.complexityAnalysisWarning);
+							}
+						} catch (analyzeError) {
+							result.data.complexityAnalysisWarning = `Complexity analysis failed: ${analyzeError.message}. Run analyze_project_complexity to retry.`;
+							log.warn(result.data.complexityAnalysisWarning);
+						}
+					}
+
 					return handleApiResult({
 						result,
 						log: log,
