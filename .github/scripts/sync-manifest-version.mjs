@@ -73,11 +73,20 @@ for (const file of files) {
 // Generate new .mcpb bundle
 const bundleName = 'taskmaster.mcpb';
 console.log(`Generating ${bundleName} for version ${pkg.version}...`);
-const result = spawnSync('npx', ['mcpb', 'pack', '.', bundleName], {
-	cwd: rootDir,
-	encoding: 'utf8',
-	stdio: 'inherit'
-});
+const mcpbDir = join(rootDir, 'node_modules', '@anthropic-ai', 'mcpb');
+const mcpbPkg = JSON.parse(readFileSync(join(mcpbDir, 'package.json'), 'utf8'));
+const binPath =
+	typeof mcpbPkg.bin === 'string' ? mcpbPkg.bin : mcpbPkg.bin.mcpb;
+const mcpbEntry = join(mcpbDir, binPath);
+const result = spawnSync(
+	process.execPath,
+	[mcpbEntry, 'pack', '.', bundleName],
+	{
+		cwd: rootDir,
+		encoding: 'utf8',
+		stdio: 'inherit'
+	}
+);
 
 if (result.status !== 0) {
 	console.error('Failed to generate MCPB bundle');

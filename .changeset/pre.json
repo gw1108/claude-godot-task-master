@@ -15,10 +15,19 @@
     "@tm/profiles": ""
   },
   "changesets": [
+    "add-minimax-provider",
     "ai-cluster-generation",
+    "bump-mcp-sdk-extension",
+    "bump-postcss-extension",
     "cluster-foundation",
     "cluster-teams-execution",
     "critical-path-prompts",
+    "fix-claude-code-install-detection",
+    "fix-complexity-merge",
+    "fix-filestorage-cleanup",
+    "fix-mcp-response-tag",
+    "fix-solo-mode-storage-leak",
+    "fix-sync-readme-dead-url",
     "help-sync-test-enhancements",
     "jolly-dodos-roll"
   ]

@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.26.1-rc.0
+
+### Patch Changes
+
+- [`5249feb`](https://github.com/eyaltoledano/claude-task-master/commit/5249feb68f03987063fbd7d7adea3b7af5cb7345) Thanks [@gw1108](https://github.com/gw1108)! - Bump `@modelcontextprotocol/sdk` to 1.29.0 in the VS Code extension to resolve known security advisories (ReDoS, cross-client data leak, and missing DNS rebinding protection).
+
+- [`4856817`](https://github.com/eyaltoledano/claude-task-master/commit/4856817d5f241cde78b764eae9c91579d82379cb) Thanks [@gw1108](https://github.com/gw1108)! - Bump `postcss` to 8.5.14 in the VS Code extension to resolve a moderate-severity XSS advisory (GHSA-qx2v-qp2m-jg93) affecting versions prior to 8.5.10.
+
 ## 0.26.0
 
 ### Minor Changes

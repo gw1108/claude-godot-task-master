@@ -1,5 +1,25 @@
 # task-master-ai
 
+## 1.0.0-rc.2
+
+### Minor Changes
+
+- [#1652](https://github.com/eyaltoledano/claude-task-master/pull/1652) [`13d672d`](https://github.com/eyaltoledano/claude-task-master/commit/13d672d61889188428ce58c5cae4a8018ce0e2b3) Thanks [@octo-patch](https://github.com/octo-patch)! - Add MiniMax as a first-class AI provider, enabling MiniMax-M2.5 and MiniMax-M2.5-highspeed models for main, research, and fallback roles
+
+### Patch Changes
+
+- [#1635](https://github.com/eyaltoledano/claude-task-master/pull/1635) [`e799e62`](https://github.com/eyaltoledano/claude-task-master/commit/e799e62408e61679c14981f945a3b5391f5e7429) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Fix Claude Code CLI detection for native binary installations and update install instructions to reference official documentation
+
+- [#1645](https://github.com/eyaltoledano/claude-task-master/pull/1645) [`efe2f56`](https://github.com/eyaltoledano/claude-task-master/commit/efe2f569951e4ae5cfb5d71d27df0ff74b028103) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Fix complexity report losing results when running analyze-complexity with --from/--to ranges multiple times. Previous entries outside the current analysis range are now preserved across runs.
+
+- [`4b72546`](https://github.com/eyaltoledano/claude-task-master/commit/4b7254640704bc8b3157d6cb1b0412b60fec530e) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Fix FileStorage resource leaks by ensuring close() is called in try/finally blocks
+
+- [`eaa62d3`](https://github.com/eyaltoledano/claude-task-master/commit/eaa62d3486340e2d806e927e0605e4f536c5f885) Thanks [@gw1108](https://github.com/gw1108)! - Fix MCP tool responses returning the wrong active tag when a `tag` argument is passed explicitly. Tools like `next_task`, `add_task`, `update_task`, `update_subtask`, `expand_task`, `remove_task`, `move_task` and others now report the requested tag in their response payload instead of falling back to `currentTag` from `.taskmaster/state.json`. Resolves #1683 (and related symptom in #1638).
+
+- [#1653](https://github.com/eyaltoledano/claude-task-master/pull/1653) [`8086ff7`](https://github.com/eyaltoledano/claude-task-master/commit/8086ff7307ec0cc44e2528af8a9783187b80fe89) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - Fix CLI using the wrong project's brief context when running in solo-mode repos. Previously, if you were logged into Hamster in one project and then ran Task Master in a different project, it would incorrectly use the previous project's brief context. Brief/org selection is now scoped per workspace (`~/.taskmaster/{projectId}/context.json`) instead of stored globally. Auth tokens remain global as intended — you stay logged in across repos, but each workspace gets its own brief context. Projects with local task files also get an additional safeguard to always prefer file storage.
+
+- [#1691](https://github.com/eyaltoledano/claude-task-master/pull/1691) [`c0c98d3`](https://github.com/eyaltoledano/claude-task-master/commit/c0c98d367c55296bfe69e65680625b6db437af02) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - Fix `task-master sync-readme` generating links to the retired `task-master.dev` domain. Exported READMEs now link to `https://tryhamster.com/product/taskmaster`.
+
 ## 1.0.0-rc.1
 
 ### Patch Changes
