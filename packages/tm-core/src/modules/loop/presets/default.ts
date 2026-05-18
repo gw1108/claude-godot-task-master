@@ -1,10 +1,13 @@
 /**
  * Default preset for Taskmaster loop - general task completion
  * Matches the structure of scripts/loop.sh prompt
+ *
+ * Note: The task-master CLI availability is verified once before the loop
+ * starts (see LoopService.checkTaskMasterAvailable). Setup instructions are
+ * intentionally not embedded in the prompt to avoid spending tokens on a
+ * precondition the LLM cannot act on mid-iteration.
  */
-export const DEFAULT_PRESET = `SETUP: If task-master command not found, run: npm i -g task-master-ai
-
-TASK: Implement ONE task/subtask from the Taskmaster backlog.
+export const DEFAULT_PRESET = `TASK: Implement ONE task/subtask from the Taskmaster backlog.
 
 PROCESS:
 1. Run task-master next (or use MCP) to get the next available task/subtask.

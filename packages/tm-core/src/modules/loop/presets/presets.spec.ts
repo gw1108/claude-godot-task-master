@@ -256,7 +256,7 @@ describe('Preset Content Consistency', () => {
 	});
 
 	it('specialized presets have markdown headers', () => {
-		// Default preset uses plain text sections (SETUP:, TASK:, PROCESS:, IMPORTANT:)
+		// Default preset uses plain text sections (TASK:, PROCESS:, IMPORTANT:)
 		// Other presets use markdown headers
 		for (const preset of PRESET_NAMES.filter((p) => p !== 'default')) {
 			const content = getPreset(preset);

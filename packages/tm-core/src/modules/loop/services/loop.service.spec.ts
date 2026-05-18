@@ -179,6 +179,69 @@ describe('LoopService', () => {
 		});
 	});
 
+	describe('checkTaskMasterAvailable()', () => {
+		it('should return available=true when task-master --version succeeds', () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '0.27.3',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			const service = new LoopService(defaultOptions);
+			const result = service.checkTaskMasterAvailable();
+
+			expect(result.available).toBe(true);
+			expect(mockSpawnSync).toHaveBeenCalledWith(
+				'task-master',
+				['--version'],
+				expect.objectContaining({
+					cwd: '/test/project'
+				})
+			);
+		});
+
+		it('should return available=false with install hint on ENOENT', () => {
+			const enoent = Object.assign(new Error('not found'), {
+				code: 'ENOENT'
+			}) as NodeJS.ErrnoException;
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: null,
+				signal: null,
+				pid: 0,
+				output: [],
+				error: enoent
+			});
+
+			const service = new LoopService(defaultOptions);
+			const result = service.checkTaskMasterAvailable();
+
+			expect(result.available).toBe(false);
+			expect(result.error).toContain('npm i -g task-master-ai');
+		});
+
+		it('should return available=false when exit code is non-zero', () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: 'broken install',
+				status: 1,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			const service = new LoopService(defaultOptions);
+			const result = service.checkTaskMasterAvailable();
+
+			expect(result.available).toBe(false);
+			expect(result.error).toMatch(/exit(ed)? with code 1/i);
+		});
+	});
+
 	describe('runInteractiveAuth()', () => {
 		it('should spawn interactive docker session', () => {
 			mockSpawnSync.mockReturnValue({
@@ -253,7 +316,8 @@ describe('LoopService', () => {
 
 				expect(result.totalIterations).toBe(3);
 				expect(result.tasksCompleted).toBe(3);
-				expect(mockSpawnSync).toHaveBeenCalledTimes(3);
+				// 1 task-master --version precondition + 3 claude iterations
+				expect(mockSpawnSync).toHaveBeenCalledTimes(4);
 			});
 
 			it('should call spawnSync with claude -p by default (non-sandbox)', async () => {
@@ -279,6 +343,92 @@ describe('LoopService', () => {
 					expect.objectContaining({
 						cwd: '/test/project'
 					})
+				);
+			});
+		});
+
+		describe('task-master precondition', () => {
+			it('should fail fast for default preset when task-master is missing', async () => {
+				const enoent = Object.assign(new Error('not found'), {
+					code: 'ENOENT'
+				}) as NodeJS.ErrnoException;
+				mockSpawnSync.mockReturnValue({
+					stdout: '',
+					stderr: '',
+					status: null,
+					signal: null,
+					pid: 0,
+					output: [],
+					error: enoent
+				});
+
+				const result = await service.run({
+					prompt: 'default',
+					iterations: 5,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt'
+				});
+
+				expect(result.finalStatus).toBe('error');
+				expect(result.totalIterations).toBe(0);
+				expect(result.errorMessage).toContain('npm i -g task-master-ai');
+				// Only the precondition spawn ran - no iterations spawned
+				expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+				expect(mockSpawnSync).toHaveBeenCalledWith(
+					'task-master',
+					['--version'],
+					expect.any(Object)
+				);
+			});
+
+			it('should skip precondition for non-default presets', async () => {
+				mockSpawnSync.mockReturnValue({
+					stdout: 'Done',
+					stderr: '',
+					status: 0,
+					signal: null,
+					pid: 123,
+					output: []
+				});
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt'
+				});
+
+				// No precondition call - only the single claude iteration
+				expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+				expect(mockSpawnSync).not.toHaveBeenCalledWith(
+					'task-master',
+					expect.any(Array),
+					expect.any(Object)
+				);
+			});
+
+			it('should skip precondition in sandbox mode', async () => {
+				mockSpawnSync.mockReturnValue({
+					stdout: 'Done',
+					stderr: '',
+					status: 0,
+					signal: null,
+					pid: 123,
+					output: []
+				});
+
+				await service.run({
+					prompt: 'default',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					sandbox: true
+				});
+
+				expect(mockSpawnSync).not.toHaveBeenCalledWith(
+					'task-master',
+					expect.any(Array),
+					expect.any(Object)
 				);
 			});
 		});
@@ -329,14 +479,25 @@ describe('LoopService', () => {
 
 		describe('error handling', () => {
 			it('should handle non-zero exit code', async () => {
-				mockSpawnSync.mockReturnValue({
-					stdout: '',
-					stderr: 'Error occurred',
-					status: 1,
-					signal: null,
-					pid: 123,
-					output: []
-				});
+				// First call is the task-master precondition (must succeed),
+				// subsequent calls are the iteration (the error we're testing).
+				mockSpawnSync
+					.mockReturnValueOnce({
+						stdout: '0.27.3',
+						stderr: '',
+						status: 0,
+						signal: null,
+						pid: 123,
+						output: []
+					})
+					.mockReturnValue({
+						stdout: '',
+						stderr: 'Error occurred',
+						status: 1,
+						signal: null,
+						pid: 123,
+						output: []
+					});
 
 				const result = await service.run({
 					prompt: 'default',
@@ -350,14 +511,23 @@ describe('LoopService', () => {
 			});
 
 			it('should handle null status as error', async () => {
-				mockSpawnSync.mockReturnValue({
-					stdout: '',
-					stderr: '',
-					status: null,
-					signal: 'SIGTERM',
-					pid: 123,
-					output: []
-				});
+				mockSpawnSync
+					.mockReturnValueOnce({
+						stdout: '0.27.3',
+						stderr: '',
+						status: 0,
+						signal: null,
+						pid: 123,
+						output: []
+					})
+					.mockReturnValue({
+						stdout: '',
+						stderr: '',
+						status: null,
+						signal: 'SIGTERM',
+						pid: 123,
+						output: []
+					});
 
 				const result = await service.run({
 					prompt: 'default',

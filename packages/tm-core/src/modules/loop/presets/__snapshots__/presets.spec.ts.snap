@@ -1,9 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`Preset Snapshots > default preset matches snapshot 1`] = `
-"SETUP: If task-master command not found, run: npm i -g task-master-ai
-
-TASK: Implement ONE task/subtask from the Taskmaster backlog.
+"TASK: Implement ONE task/subtask from the Taskmaster backlog.
 
 PROCESS:
 1. Run task-master next (or use MCP) to get the next available task/subtask.
