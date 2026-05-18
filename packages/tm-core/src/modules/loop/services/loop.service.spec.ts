@@ -540,6 +540,147 @@ describe('LoopService', () => {
 			});
 		});
 
+		describe('trace mode', () => {
+			it('should reject trace + sandbox combination with --trace-specific message', async () => {
+				const result = await service.run({
+					prompt: 'default',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					sandbox: true,
+					trace: true
+				});
+
+				expect(result.finalStatus).toBe('error');
+				expect(result.errorMessage).toContain('--trace');
+				// No child process should be spawned when validation fails
+				expect(mockSpawnSync).not.toHaveBeenCalled();
+			});
+
+			it('should reject verbose + sandbox combination with --verbose-specific message', async () => {
+				const result = await service.run({
+					prompt: 'default',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					sandbox: true,
+					verbose: true
+				});
+
+				expect(result.finalStatus).toBe('error');
+				expect(result.errorMessage).toContain('--verbose');
+				expect(mockSpawnSync).not.toHaveBeenCalled();
+			});
+
+			it('should forward trace-only callbacks through stream event handler', () => {
+				const onText = vi.fn();
+				const onToolUse = vi.fn();
+				const onToolInput = vi.fn();
+				const onToolResult = vi.fn();
+
+				const toolCallCounts = new Map<string, number>();
+				const handleStreamEvent = (
+					service as unknown as {
+						handleStreamEvent: (
+							event: unknown,
+							callbacks: unknown,
+							trace?: boolean,
+							counts?: Map<string, number>
+						) => void;
+					}
+				).handleStreamEvent.bind(service);
+
+				// Assistant message: text + tool_use with input
+				handleStreamEvent(
+					{
+						type: 'assistant',
+						message: {
+							content: [
+								{ type: 'text', text: 'analysing...' },
+								{
+									type: 'tool_use',
+									name: 'Bash',
+									input: { command: 'ls' }
+								}
+							]
+						}
+					},
+					{ onText, onToolUse, onToolInput, onToolResult },
+					true,
+					toolCallCounts
+				);
+
+				// User message: tool_result block
+				handleStreamEvent(
+					{
+						type: 'user',
+						message: {
+							content: [{ type: 'tool_result', content: 'output' }]
+						}
+					},
+					{ onText, onToolUse, onToolInput, onToolResult },
+					true,
+					toolCallCounts
+				);
+
+				expect(onText).toHaveBeenCalledWith('analysing...');
+				expect(onToolUse).toHaveBeenCalledWith('Bash');
+				expect(onToolInput).toHaveBeenCalledWith('Bash', { command: 'ls' });
+				expect(onToolResult).toHaveBeenCalledWith(undefined, 'output');
+				expect(toolCallCounts.get('Bash')).toBe(1);
+			});
+
+			it('should NOT emit trace-only callbacks when trace=false', () => {
+				const onText = vi.fn();
+				const onToolUse = vi.fn();
+				const onToolInput = vi.fn();
+				const onToolResult = vi.fn();
+
+				const handleStreamEvent = (
+					service as unknown as {
+						handleStreamEvent: (
+							event: unknown,
+							callbacks: unknown,
+							trace?: boolean,
+							counts?: Map<string, number>
+						) => void;
+					}
+				).handleStreamEvent.bind(service);
+
+				handleStreamEvent(
+					{
+						type: 'assistant',
+						message: {
+							content: [
+								{
+									type: 'tool_use',
+									name: 'Bash',
+									input: { command: 'ls' }
+								}
+							]
+						}
+					},
+					{ onText, onToolUse, onToolInput, onToolResult },
+					false
+				);
+
+				handleStreamEvent(
+					{
+						type: 'user',
+						message: {
+							content: [{ type: 'tool_result', content: 'output' }]
+						}
+					},
+					{ onText, onToolUse, onToolInput, onToolResult },
+					false
+				);
+
+				expect(onToolUse).toHaveBeenCalledWith('Bash');
+				expect(onToolInput).not.toHaveBeenCalled();
+				expect(onToolResult).not.toHaveBeenCalled();
+			});
+		});
+
 		describe('progress file operations', () => {
 			it('should initialize progress file at start', async () => {
 				mockSpawnSync.mockReturnValue({

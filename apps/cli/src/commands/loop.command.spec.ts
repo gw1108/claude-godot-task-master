@@ -477,5 +477,122 @@ describe('LoopCommand', () => {
 			expect(allOutput).toContain('Next task');
 			expect(allOutput).toContain('Test Task');
 		});
+
+		it('should pass trace flag through to loop config', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({ trace: true });
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({
+					trace: true,
+					// trace implies verbose streaming
+					verbose: true
+				})
+			);
+		});
+
+		it('should not enable trace by default', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({});
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({
+					trace: false,
+					verbose: false
+				})
+			);
+		});
+
+		it('should preserve plain --verbose without enabling trace', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({ verbose: true });
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({
+					trace: false,
+					verbose: true
+				})
+			);
+		});
+	});
+
+	describe('trace callbacks', () => {
+		it('should not register trace callbacks when trace is false', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(false);
+
+			expect(callbacks.onPromptSent).toBeUndefined();
+			expect(callbacks.onToolInput).toBeUndefined();
+			expect(callbacks.onToolResult).toBeUndefined();
+			expect(callbacks.onIterationSummary).toBeUndefined();
+		});
+
+		it('should register trace callbacks when trace is true', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(true);
+
+			expect(typeof callbacks.onPromptSent).toBe('function');
+			expect(typeof callbacks.onToolInput).toBe('function');
+			expect(typeof callbacks.onToolResult).toBe('function');
+			expect(typeof callbacks.onIterationSummary).toBe('function');
+		});
+
+		it('should print the LLM prompt via onPromptSent', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(true);
+
+			callbacks.onPromptSent(2, 'hello LLM');
+
+			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
+			expect(allOutput).toContain('LLM input');
+			expect(allOutput).toContain('iteration 2');
+			expect(allOutput).toContain('hello LLM');
+		});
+
+		it('should print a tool-call summary at iteration end', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(true);
+
+			callbacks.onIterationSummary(1, {
+				toolCalls: [
+					{ name: 'Bash', count: 3 },
+					{ name: 'Edit', count: 1 }
+				],
+				finalResult: 'done'
+			});
+
+			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
+			expect(allOutput).toContain('tool-call summary');
+			expect(allOutput).toContain('Bash');
+			expect(allOutput).toContain('3');
+			expect(allOutput).toContain('Edit');
+			expect(allOutput).toContain('done');
+		});
+
+		it('should truncate large tool inputs', () => {
+			const formatTraceValue = (loopCommand as any).formatTraceValue.bind(
+				loopCommand
+			);
+			const large = { data: 'x'.repeat(2000) };
+			const formatted = formatTraceValue(large);
+			expect(formatted.endsWith('…')).toBe(true);
+		});
 	});
 });

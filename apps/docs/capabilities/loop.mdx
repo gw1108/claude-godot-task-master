@@ -88,6 +88,24 @@ Example progress file content:
 | `--status`               | string | `pending`                       | Filter to only work on tasks with this status.                                                                |
 | `--project`              | string | -                               | Project root directory. Auto-detected if not provided.                                                        |
 | `--json`                 | flag   | -                               | Output results as JSON instead of formatted text.                                                             |
+| `-v, --verbose`          | flag   | -                               | Stream Claude's work in real-time (text + tool-call names) instead of waiting for the final result.           |
+| `--trace`                | flag   | -                               | Implies `--verbose` and also emits the full LLM prompt, tool-call inputs/results, and a per-iteration tool-call summary. Useful for debugging loop behavior. Not compatible with `--sandbox`. |
+
+### Verbosity Levels
+
+The loop command exposes two levels of visibility into each iteration:
+
+- **`-v, --verbose`** — stream Claude's incremental text and tool-call **names** as they occur. Good for "watch it work" mode.
+- **`--trace`** — everything `--verbose` shows, plus:
+  - The full prompt sent to the LLM at the start of each iteration (the LLM input).
+  - The **input parameters** passed to every tool call (e.g. the `Bash` command, the `Edit` file path).
+  - The **result content** returned to every tool call (truncated for readability).
+  - A **tool-call summary** at the end of each iteration (e.g. `Bash: 3, Edit: 1, Read: 5`).
+  - The final result text the LLM emitted.
+
+Use `--trace` when you need to debug *why* a loop iteration behaved a certain way, or when you're tuning a custom prompt and want to inspect what the model actually received and produced. Use plain `--verbose` for routine monitoring — `--trace` is noticeably noisier.
+
+Both flags are incompatible with `--sandbox` (the Docker sandbox doesn't stream JSON the same way).
 
 ### Option Details
 

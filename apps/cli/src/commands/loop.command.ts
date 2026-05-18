@@ -27,6 +27,7 @@ export interface LoopCommandOptions {
 	sandbox?: boolean;
 	output?: boolean;
 	verbose?: boolean;
+	trace?: boolean;
 }
 
 export class LoopCommand extends Command {
@@ -58,6 +59,10 @@ export class LoopCommand extends Command {
 				'Exclude full Claude output from iteration results'
 			)
 			.option('-v, --verbose', "Show Claude's work in real-time")
+			.option(
+				'--trace',
+				'Show full LLM input/output and tool-call details (implies --verbose)'
+			)
 			.action((options: LoopCommandOptions) => this.execute(options));
 	}
 
@@ -130,9 +135,11 @@ export class LoopCommand extends Command {
 				// CLI defaults to including output (users typically want to see it)
 				// Domain defaults to false (library consumers opt-in explicitly)
 				includeOutput: options.output ?? true,
-				verbose: options.verbose ?? false,
+				// Trace implies verbose - the service uses the same streaming path.
+				verbose: (options.verbose ?? false) || (options.trace ?? false),
+				trace: options.trace ?? false,
 				brief: briefName,
-				callbacks: this.createOutputCallbacks()
+				callbacks: this.createOutputCallbacks(options.trace ?? false)
 			};
 
 			const result = await this.tmCore.loop.run(config);
@@ -179,8 +186,8 @@ export class LoopCommand extends Command {
 		}
 	}
 
-	private createOutputCallbacks(): LoopOutputCallbacks {
-		return {
+	private createOutputCallbacks(trace = false): LoopOutputCallbacks {
+		const callbacks: LoopOutputCallbacks = {
 			onIterationStart: (iteration: number, total: number) => {
 				console.log();
 				console.log(chalk.cyan(`━━━ Iteration ${iteration} of ${total} ━━━`));
@@ -218,6 +225,71 @@ export class LoopCommand extends Command {
 				);
 			}
 		};
+
+		if (trace) {
+			callbacks.onPromptSent = (iteration: number, prompt: string) => {
+				console.log();
+				console.log(
+					chalk.magenta(`[trace] LLM input (iteration ${iteration}):`)
+				);
+				console.log(chalk.dim(prompt));
+				console.log();
+			};
+			callbacks.onToolInput = (toolName: string, input: unknown) => {
+				console.log(
+					chalk.magenta(`[trace] ${toolName} input:`),
+					chalk.dim(this.formatTraceValue(input))
+				);
+			};
+			callbacks.onToolResult = (
+				toolName: string | undefined,
+				result: unknown
+			) => {
+				const label = toolName ? `${toolName} result` : 'tool result';
+				console.log(
+					chalk.magenta(`[trace] ${label}:`),
+					chalk.dim(this.formatTraceValue(result))
+				);
+			};
+			callbacks.onIterationSummary = (
+				iteration: number,
+				summary: {
+					toolCalls: Array<{ name: string; count: number }>;
+					finalResult?: string;
+				}
+			) => {
+				console.log();
+				console.log(
+					chalk.magenta(`[trace] Iteration ${iteration} tool-call summary:`)
+				);
+				if (summary.toolCalls.length === 0) {
+					console.log(chalk.dim('  (no tool calls)'));
+				} else {
+					for (const tc of summary.toolCalls) {
+						console.log(chalk.dim(`  ${tc.name}: ${tc.count}`));
+					}
+				}
+				if (summary.finalResult) {
+					console.log(chalk.magenta(`[trace] LLM final output:`));
+					console.log(chalk.dim(summary.finalResult));
+				}
+			};
+		}
+
+		return callbacks;
+	}
+
+	private formatTraceValue(value: unknown): string {
+		if (value === undefined || value === null) return String(value);
+		if (typeof value === 'string') {
+			return value.length > 500 ? `${value.slice(0, 500)}…` : value;
+		}
+		try {
+			const json = JSON.stringify(value, null, 2);
+			return json.length > 1000 ? `${json.slice(0, 1000)}…` : json;
+		} catch {
+			return String(value);
+		}
 	}
 
 	private displayResult(result: LoopResult): void {

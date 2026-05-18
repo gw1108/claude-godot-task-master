@@ -193,6 +193,7 @@ export class LoopDomain {
 			sandbox: partial.sandbox ?? false,
 			includeOutput: partial.includeOutput ?? false,
 			verbose: partial.verbose ?? false,
+			trace: partial.trace ?? false,
 			brief: partial.brief,
 			callbacks: partial.callbacks
 		};
