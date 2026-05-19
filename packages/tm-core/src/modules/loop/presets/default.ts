@@ -18,7 +18,7 @@ PROCESS:
 6. Run tests (e.g., \`npm test\`, \`npm run test\`).
 7. Mark complete: task-master set-status --id=<id> --status=done
 8. Commit with message: feat(<scope>): <what was implemented>
-9. Append super-concise notes to progress file: task ID, what was done, any learnings.
+9. Append super-concise notes to progress file: task ID, what was done. If there was any mistakes or false assumptions, append them into a learning.
 
 IMPORTANT:
 - Complete ONLY ONE task per iteration.

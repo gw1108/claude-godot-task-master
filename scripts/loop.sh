@@ -45,7 +45,7 @@ PROCESS: \
 6. Run npm test -w <package> to verify tests pass. \
 7. Mark complete: task-master set-status --id=<id> --status=done \
 8. Commit with message: feat(loop): <what was implemented> (do NOT include loop-progress.txt in commit) \
-9. Append super-concise notes to .taskmaster/loop-progress.txt: task ID, what was done, any learnings. \
+9. Append super-concise notes to .taskmaster/loop-progress.txt: task ID, what was done. If there was any mistakes or false assumptions, append them into a learning. \
 \
 IMPORTANT: \
 - Complete ONLY ONE task per iteration. \
