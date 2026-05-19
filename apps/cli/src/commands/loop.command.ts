@@ -277,6 +277,13 @@ export class LoopCommand extends Command {
 				summary: {
 					toolCalls: Array<{ name: string; count: number }>;
 					finalResult?: string;
+					tokenUsage?: {
+						inputTokens: number;
+						outputTokens: number;
+						cacheCreationInputTokens?: number;
+						cacheReadInputTokens?: number;
+						totalTokens: number;
+					};
 				}
 			) => {
 				console.log();
@@ -289,6 +296,31 @@ export class LoopCommand extends Command {
 					for (const tc of summary.toolCalls) {
 						console.log(chalk.dim(`  ${tc.name}: ${tc.count}`));
 					}
+				}
+				if (summary.tokenUsage) {
+					const u = summary.tokenUsage;
+					console.log(
+						chalk.magenta(`[trace] Iteration ${iteration} token usage:`)
+					);
+					console.log(chalk.dim(`  input: ${u.inputTokens.toLocaleString()}`));
+					console.log(
+						chalk.dim(`  output: ${u.outputTokens.toLocaleString()}`)
+					);
+					if (u.cacheCreationInputTokens !== undefined) {
+						console.log(
+							chalk.dim(
+								`  cache write: ${u.cacheCreationInputTokens.toLocaleString()}`
+							)
+						);
+					}
+					if (u.cacheReadInputTokens !== undefined) {
+						console.log(
+							chalk.dim(
+								`  cache read: ${u.cacheReadInputTokens.toLocaleString()}`
+							)
+						);
+					}
+					console.log(chalk.dim(`  total: ${u.totalTokens.toLocaleString()}`));
 				}
 				if (summary.finalResult) {
 					console.log(chalk.magenta(`[trace] LLM final output:`));

@@ -676,6 +676,53 @@ describe('LoopCommand', () => {
 			expect(allOutput).toContain('done');
 		});
 
+		it('should print token usage when included in the summary', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(true, true);
+
+			callbacks.onIterationSummary(2, {
+				toolCalls: [],
+				tokenUsage: {
+					inputTokens: 1234,
+					outputTokens: 567,
+					cacheCreationInputTokens: 890,
+					cacheReadInputTokens: 12345,
+					totalTokens: 15036
+				}
+			});
+
+			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
+			expect(allOutput).toContain('token usage');
+			expect(allOutput).toContain('1,234');
+			expect(allOutput).toContain('567');
+			expect(allOutput).toContain('890');
+			expect(allOutput).toContain('12,345');
+			expect(allOutput).toContain('15,036');
+		});
+
+		it('should omit cache rows when cache fields are absent', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(true, true);
+
+			callbacks.onIterationSummary(3, {
+				toolCalls: [],
+				tokenUsage: {
+					inputTokens: 100,
+					outputTokens: 50,
+					totalTokens: 150
+				}
+			});
+
+			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
+			expect(allOutput).toContain('token usage');
+			expect(allOutput).not.toContain('cache write');
+			expect(allOutput).not.toContain('cache read');
+		});
+
 		it('should truncate large tool inputs', () => {
 			const formatTraceValue = (loopCommand as any).formatTraceValue.bind(
 				loopCommand
