@@ -195,11 +195,34 @@ describe('LoopService', () => {
 
 			expect(result.available).toBe(true);
 			expect(mockSpawnSync).toHaveBeenCalledWith(
-				'task-master',
-				['--version'],
+				'task-master --version',
 				expect.objectContaining({
 					cwd: '/test/project'
 				})
+			);
+		});
+
+		it('should spawn with shell:true so Windows resolves the task-master.cmd shim via PATHEXT', () => {
+			// Regression test: Node child_process.spawn on Windows does not consult
+			// PATHEXT for .cmd/.bat shims unless shell:true is set. npm installs
+			// task-master as task-master.cmd on Windows, so without shell:true the
+			// availability check fails with ENOENT and reports a misleading
+			// "CLI not found - install with npm i -g" error on every invocation.
+			mockSpawnSync.mockReturnValue({
+				stdout: '1.0.0-rc.2',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			const service = new LoopService(defaultOptions);
+			service.checkTaskMasterAvailable();
+
+			expect(mockSpawnSync).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ shell: true })
 			);
 		});
 
@@ -466,8 +489,7 @@ describe('LoopService', () => {
 				// Only the precondition spawn ran - no iterations spawned
 				expect(mockSpawnSync).toHaveBeenCalledTimes(1);
 				expect(mockSpawnSync).toHaveBeenCalledWith(
-					'task-master',
-					['--version'],
+					'task-master --version',
 					expect.any(Object)
 				);
 			});
@@ -492,8 +514,7 @@ describe('LoopService', () => {
 				// No precondition call - only the single claude iteration
 				expect(mockSpawnSync).toHaveBeenCalledTimes(1);
 				expect(mockSpawnSync).not.toHaveBeenCalledWith(
-					'task-master',
-					expect.any(Array),
+					'task-master --version',
 					expect.any(Object)
 				);
 			});
@@ -517,8 +538,7 @@ describe('LoopService', () => {
 				});
 
 				expect(mockSpawnSync).not.toHaveBeenCalledWith(
-					'task-master',
-					expect.any(Array),
+					'task-master --version',
 					expect.any(Object)
 				);
 			});
@@ -719,6 +739,151 @@ describe('LoopService', () => {
 				expect(onToolInput).toHaveBeenCalledWith('Bash', { command: 'ls' });
 				expect(onToolResult).toHaveBeenCalledWith(undefined, 'output');
 				expect(toolCallCounts.get('Bash')).toBe(1);
+			});
+
+			it('should populate traceLines buffer with plain-text tool input/result (no ANSI)', () => {
+				const handleStreamEvent = (
+					service as unknown as {
+						handleStreamEvent: (
+							event: unknown,
+							callbacks: unknown,
+							trace?: boolean,
+							counts?: Map<string, number>,
+							traceLines?: string[]
+						) => void;
+					}
+				).handleStreamEvent.bind(service);
+
+				const traceLines: string[] = [];
+				const toolCallCounts = new Map<string, number>();
+
+				handleStreamEvent(
+					{
+						type: 'assistant',
+						message: {
+							content: [
+								{
+									type: 'tool_use',
+									name: 'Bash',
+									input: { command: 'ls -la' }
+								}
+							]
+						}
+					},
+					{},
+					true,
+					toolCallCounts,
+					traceLines
+				);
+
+				handleStreamEvent(
+					{
+						type: 'user',
+						message: {
+							content: [
+								{ type: 'tool_result', content: 'file1.txt\nfile2.txt' }
+							]
+						}
+					},
+					{},
+					true,
+					toolCallCounts,
+					traceLines
+				);
+
+				expect(traceLines).toHaveLength(2);
+				expect(traceLines[0]).toBe(
+					'[trace] Bash input: {\n  "command": "ls -la"\n}'
+				);
+				expect(traceLines[1]).toBe('[trace] tool result: file1.txt\nfile2.txt');
+				// Critical: file output must be plain text - no chalk ANSI escape codes.
+				// eslint-disable-next-line no-control-regex
+				expect(traceLines.join('\n')).not.toMatch(/\x1b\[/);
+			});
+
+			it('should NOT populate traceLines when trace=false', () => {
+				const handleStreamEvent = (
+					service as unknown as {
+						handleStreamEvent: (
+							event: unknown,
+							callbacks: unknown,
+							trace?: boolean,
+							counts?: Map<string, number>,
+							traceLines?: string[]
+						) => void;
+					}
+				).handleStreamEvent.bind(service);
+
+				const traceLines: string[] = [];
+
+				handleStreamEvent(
+					{
+						type: 'assistant',
+						message: {
+							content: [
+								{
+									type: 'tool_use',
+									name: 'Bash',
+									input: { command: 'ls' }
+								}
+							]
+						}
+					},
+					{},
+					false,
+					new Map(),
+					traceLines
+				);
+
+				expect(traceLines).toHaveLength(0);
+			});
+
+			it('formatIterationTraceForFile composes a plain-text block with summary and final output', () => {
+				const format = (
+					service as unknown as {
+						formatIterationTraceForFile: (
+							iterationNum: number,
+							traceLines: string[],
+							toolCalls: Array<{ name: string; count: number }>,
+							finalResult: string
+						) => string;
+					}
+				).formatIterationTraceForFile.bind(service);
+
+				const block = format(
+					1,
+					['[trace] Bash input: {}', '[trace] tool result: ok'],
+					[{ name: 'Bash', count: 1 }],
+					'All tasks done.'
+				);
+
+				expect(block).toContain('[trace] Bash input: {}');
+				expect(block).toContain('[trace] tool result: ok');
+				expect(block).toContain('[trace] Iteration 1 tool-call summary:');
+				expect(block).toContain('  Bash: 1');
+				expect(block).toContain('[trace] LLM final output:');
+				expect(block).toContain('All tasks done.');
+				// eslint-disable-next-line no-control-regex
+				expect(block).not.toMatch(/\x1b\[/);
+			});
+
+			it('formatIterationTraceForFile reports "no tool calls" when none ran', () => {
+				const format = (
+					service as unknown as {
+						formatIterationTraceForFile: (
+							iterationNum: number,
+							traceLines: string[],
+							toolCalls: Array<{ name: string; count: number }>,
+							finalResult: string
+						) => string;
+					}
+				).formatIterationTraceForFile.bind(service);
+
+				const block = format(2, [], [], '');
+
+				expect(block).toContain('[trace] Iteration 2 tool-call summary:');
+				expect(block).toContain('  (no tool calls)');
+				expect(block).not.toContain('[trace] LLM final output:');
 			});
 
 			it('should NOT emit trace-only callbacks when trace=false', () => {

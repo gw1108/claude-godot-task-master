@@ -45,11 +45,12 @@ export class LoopService {
 	 * every iteration on a SETUP line the LLM cannot usefully act on.
 	 */
 	checkTaskMasterAvailable(): { available: boolean; error?: string } {
-		const result = spawnSync('task-master', ['--version'], {
+		const result = spawnSync('task-master --version', {
 			cwd: this.projectRoot,
 			timeout: 10000,
 			encoding: 'utf-8',
-			stdio: ['ignore', 'pipe', 'pipe']
+			stdio: ['ignore', 'pipe', 'pipe'],
+			shell: true
 		});
 
 		if (result.error) {
@@ -202,6 +203,10 @@ export class LoopService {
 			// In trace mode, emit the full prompt sent to the LLM before invoking it.
 			if (config.trace) {
 				config.callbacks?.onPromptSent?.(i, prompt);
+				await this.writeTraceToProgressFile(
+					config.progressFile,
+					`\n[trace] LLM input (iteration ${i}):\n${prompt}\n`
+				);
 			}
 
 			const iteration = await this.executeIteration(
@@ -211,7 +216,8 @@ export class LoopService {
 				config.includeOutput ?? false,
 				streaming,
 				config.trace ?? false,
-				config.callbacks
+				config.callbacks,
+				config.progressFile
 			);
 			iterations.push(iteration);
 
@@ -355,6 +361,74 @@ export class LoopService {
 		);
 	}
 
+	/**
+	 * Plain-text formatter for trace values written to the progress file.
+	 * Mirrors the CLI's display formatter but emits no ANSI codes and does
+	 * not truncate, since a saved log is meant to be reviewed in full.
+	 */
+	private formatTraceValueForFile(value: unknown): string {
+		if (value === undefined || value === null) return String(value);
+		if (typeof value === 'string') return value;
+		try {
+			return JSON.stringify(value, null, 2);
+		} catch {
+			return String(value);
+		}
+	}
+
+	/**
+	 * Compose the per-iteration trace block written at iteration close.
+	 * Includes any tool-call lines accumulated during streaming, the
+	 * tool-call summary, and the LLM's final text output.
+	 */
+	private formatIterationTraceForFile(
+		iterationNum: number,
+		traceLines: string[],
+		toolCalls: Array<{ name: string; count: number }>,
+		finalResult: string
+	): string {
+		const sections: string[] = [];
+
+		if (traceLines.length > 0) {
+			sections.push(traceLines.join('\n'));
+		}
+
+		const summaryLines: string[] = [];
+		summaryLines.push(`[trace] Iteration ${iterationNum} tool-call summary:`);
+		if (toolCalls.length === 0) {
+			summaryLines.push('  (no tool calls)');
+		} else {
+			for (const tc of toolCalls) {
+				summaryLines.push(`  ${tc.name}: ${tc.count}`);
+			}
+		}
+		if (finalResult) {
+			summaryLines.push('[trace] LLM final output:');
+			summaryLines.push(finalResult);
+		}
+		sections.push(summaryLines.join('\n'));
+
+		return '\n' + sections.join('\n\n') + '\n';
+	}
+
+	/**
+	 * Append plain-text trace content to the progress file. Failures are
+	 * logged but never thrown — a trace-write hiccup must not crash an
+	 * otherwise-successful loop iteration.
+	 */
+	private async writeTraceToProgressFile(
+		file: string,
+		content: string
+	): Promise<void> {
+		try {
+			await appendFile(file, content, 'utf-8');
+		} catch (error) {
+			this.logger.warn(
+				`Failed to write trace to progress file: ${error instanceof Error ? error.message : String(error)}`
+			);
+		}
+	}
+
 	private async appendFinalSummary(
 		file: string,
 		result: LoopResult
@@ -436,7 +510,8 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		includeOutput = false,
 		verbose = false,
 		trace = false,
-		callbacks?: LoopOutputCallbacks
+		callbacks?: LoopOutputCallbacks,
+		progressFile?: string
 	): Promise<LoopIteration> {
 		const startTime = Date.now();
 		const command = sandbox ? 'docker' : 'claude';
@@ -450,7 +525,8 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				includeOutput,
 				trace,
 				startTime,
-				callbacks
+				callbacks,
+				progressFile
 			);
 		}
 
@@ -518,11 +594,15 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		includeOutput: boolean,
 		trace: boolean,
 		startTime: number,
-		callbacks?: LoopOutputCallbacks
+		callbacks?: LoopOutputCallbacks,
+		progressFile?: string
 	): Promise<LoopIteration> {
 		const args = this.buildCommandArgs(prompt, sandbox, true);
 		// Track tool-call counts for the trace-mode iteration summary
 		const toolCallCounts = new Map<string, number>();
+		// Accumulate trace lines per-iteration so the progress file gets one
+		// ordered chunk per iteration instead of interleaved async writes.
+		const traceLines: string[] = [];
 
 		return new Promise((resolve) => {
 			// Prevent multiple resolutions from race conditions between error/close events
@@ -555,7 +635,13 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						return;
 					}
 
-					this.handleStreamEvent(event, callbacks, trace, toolCallCounts);
+					this.handleStreamEvent(
+						event,
+						callbacks,
+						trace,
+						toolCallCounts,
+						traceLines
+					);
 
 					// Capture final result for includeOutput feature
 					if (event.type === 'result') {
@@ -635,7 +721,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				);
 			});
 
-			child.on('close', (exitCode: number | null) => {
+			child.on('close', async (exitCode: number | null) => {
 				// Process remaining buffer only if stdout hasn't already ended
 				if (!stdoutEnded && buffer) {
 					processLine(buffer);
@@ -651,14 +737,25 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				}
 
 				// Trace mode: emit aggregated tool-call summary and final result text
-				if (trace && callbacks?.onIterationSummary) {
+				if (trace) {
 					const toolCalls = Array.from(toolCallCounts.entries())
 						.map(([name, count]) => ({ name, count }))
 						.sort((a, b) => b.count - a.count);
-					callbacks.onIterationSummary(iterationNum, {
+					callbacks?.onIterationSummary?.(iterationNum, {
 						toolCalls,
 						finalResult: finalResult || undefined
 					});
+					if (progressFile) {
+						await this.writeTraceToProgressFile(
+							progressFile,
+							this.formatIterationTraceForFile(
+								iterationNum,
+								traceLines,
+								toolCalls,
+								finalResult
+							)
+						);
+					}
 				}
 
 				const { status, message } = this.parseCompletion(finalResult, exitCode);
@@ -782,7 +879,8 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		},
 		callbacks?: LoopOutputCallbacks,
 		trace = false,
-		toolCallCounts?: Map<string, number>
+		toolCallCounts?: Map<string, number>,
+		traceLines?: string[]
 	): void {
 		if (!event.message?.content) return;
 
@@ -799,6 +897,9 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						);
 						if (block.input !== undefined) {
 							callbacks?.onToolInput?.(block.name, block.input);
+							traceLines?.push(
+								`[trace] ${block.name} input: ${this.formatTraceValueForFile(block.input)}`
+							);
 						}
 					}
 				}
@@ -811,6 +912,9 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 			for (const block of event.message.content) {
 				if (block.type === 'tool_result') {
 					callbacks?.onToolResult?.(block.name, block.content);
+					traceLines?.push(
+						`[trace] ${block.name ?? 'tool'} result: ${this.formatTraceValueForFile(block.content)}`
+					);
 				}
 			}
 		}
