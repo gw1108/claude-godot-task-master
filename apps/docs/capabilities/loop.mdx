@@ -101,6 +101,7 @@ The loop command exposes two levels of visibility into each iteration:
   - The **input parameters** passed to every tool call (e.g. the `Bash` command, the `Edit` file path).
   - The **result content** returned to every tool call (truncated for readability).
   - A **tool-call summary** at the end of each iteration (e.g. `Bash: 3, Edit: 1, Read: 5`).
+  - A **token-usage snapshot** at the end of each iteration: input, output, prompt-cache write/read, and total. Sourced from the stream-json `result` event's `usage` field; absent if the Claude CLI did not report one.
   - The final result text the LLM emitted.
 
 Use `--trace` when you need to debug *why* a loop iteration behaved a certain way, or when you're tuning a custom prompt and want to inspect what the model actually received and produced. Use plain `--verbose` for routine monitoring — `--trace` is noticeably noisier.

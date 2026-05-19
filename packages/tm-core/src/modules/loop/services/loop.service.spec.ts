@@ -949,6 +949,105 @@ describe('LoopService', () => {
 		});
 	});
 
+	describe('extractTokenUsage (inlined)', () => {
+		let service: LoopService;
+		let extractTokenUsage: (event: {
+			usage?: Record<string, unknown>;
+		}) => unknown;
+
+		beforeEach(() => {
+			service = new LoopService(defaultOptions);
+			extractTokenUsage = (
+				service as unknown as {
+					extractTokenUsage: typeof extractTokenUsage;
+				}
+			).extractTokenUsage.bind(service);
+		});
+
+		it('should return undefined when usage is missing', () => {
+			expect(extractTokenUsage({})).toBeUndefined();
+		});
+
+		it('should return undefined when usage is not an object', () => {
+			expect(
+				extractTokenUsage({
+					usage: 'oops' as unknown as Record<string, unknown>
+				})
+			).toBeUndefined();
+		});
+
+		it('should return undefined when all fields are zero/missing', () => {
+			expect(
+				extractTokenUsage({ usage: { input_tokens: 0, output_tokens: 0 } })
+			).toBeUndefined();
+		});
+
+		it('should map snake_case fields and compute totalTokens', () => {
+			const result = extractTokenUsage({
+				usage: {
+					input_tokens: 100,
+					output_tokens: 50,
+					cache_creation_input_tokens: 200,
+					cache_read_input_tokens: 1000
+				}
+			}) as {
+				inputTokens: number;
+				outputTokens: number;
+				cacheCreationInputTokens?: number;
+				cacheReadInputTokens?: number;
+				totalTokens: number;
+			};
+
+			expect(result).toEqual({
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheCreationInputTokens: 200,
+				cacheReadInputTokens: 1000,
+				totalTokens: 1350
+			});
+		});
+
+		it('should omit cache fields when not reported', () => {
+			const result = extractTokenUsage({
+				usage: { input_tokens: 10, output_tokens: 5 }
+			}) as {
+				inputTokens: number;
+				outputTokens: number;
+				cacheCreationInputTokens?: number;
+				cacheReadInputTokens?: number;
+				totalTokens: number;
+			};
+
+			expect(result).toEqual({
+				inputTokens: 10,
+				outputTokens: 5,
+				totalTokens: 15
+			});
+			expect(result.cacheCreationInputTokens).toBeUndefined();
+			expect(result.cacheReadInputTokens).toBeUndefined();
+		});
+
+		it('should ignore non-numeric fields', () => {
+			const result = extractTokenUsage({
+				usage: {
+					input_tokens: 7,
+					output_tokens: 'oops',
+					cache_read_input_tokens: Number.NaN
+				}
+			}) as {
+				inputTokens: number;
+				outputTokens: number;
+				cacheReadInputTokens?: number;
+				totalTokens: number;
+			};
+
+			expect(result.inputTokens).toBe(7);
+			expect(result.outputTokens).toBe(0);
+			expect(result.cacheReadInputTokens).toBeUndefined();
+			expect(result.totalTokens).toBe(7);
+		});
+	});
+
 	describe('isPreset (inlined)', () => {
 		let service: LoopService;
 		let isPreset: (name: string) => boolean;

@@ -12,7 +12,8 @@ import type {
 	LoopIteration,
 	LoopOutputCallbacks,
 	LoopPreset,
-	LoopResult
+	LoopResult,
+	LoopTokenUsage
 } from '../types.js';
 
 export interface LoopServiceOptions {
@@ -410,6 +411,57 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		return `${this.buildContextHeader(config, iteration)}\n\n${basePrompt}`;
 	}
 
+	/**
+	 * Pull a token-usage snapshot out of a stream-json `result` event.
+	 *
+	 * Returns undefined when the event has no usage payload or every token
+	 * count is zero/missing - so callers can decide to suppress empty rows
+	 * (e.g. older Claude CLI versions, aborted runs).
+	 */
+	private extractTokenUsage(event: {
+		usage?: {
+			input_tokens?: number;
+			output_tokens?: number;
+			cache_creation_input_tokens?: number;
+			cache_read_input_tokens?: number;
+		};
+	}): LoopTokenUsage | undefined {
+		const u = event.usage;
+		if (!u || typeof u !== 'object') return undefined;
+
+		const num = (v: unknown): number | undefined =>
+			typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+		const inputTokens = num(u.input_tokens) ?? 0;
+		const outputTokens = num(u.output_tokens) ?? 0;
+		const cacheCreationInputTokens = num(u.cache_creation_input_tokens);
+		const cacheReadInputTokens = num(u.cache_read_input_tokens);
+
+		if (
+			inputTokens === 0 &&
+			outputTokens === 0 &&
+			cacheCreationInputTokens === undefined &&
+			cacheReadInputTokens === undefined
+		) {
+			return undefined;
+		}
+
+		const totalTokens =
+			inputTokens +
+			outputTokens +
+			(cacheCreationInputTokens ?? 0) +
+			(cacheReadInputTokens ?? 0);
+
+		return {
+			inputTokens,
+			outputTokens,
+			...(cacheCreationInputTokens !== undefined && {
+				cacheCreationInputTokens
+			}),
+			...(cacheReadInputTokens !== undefined && { cacheReadInputTokens }),
+			totalTokens
+		};
+	}
+
 	private parseCompletion(
 		output: string,
 		exitCode: number
@@ -542,6 +594,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 			// Track stdout completion to handle race between data and close events
 			let stdoutEnded = false;
 			let finalResult = '';
+			let tokenUsage: LoopTokenUsage | undefined;
 			let buffer = '';
 
 			const processLine = (line: string): void => {
@@ -557,9 +610,15 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 
 					this.handleStreamEvent(event, callbacks, trace, toolCallCounts);
 
-					// Capture final result for includeOutput feature
+					// Capture final result and token-usage snapshot from the result event
 					if (event.type === 'result') {
 						finalResult = typeof event.result === 'string' ? event.result : '';
+						if (trace) {
+							const usage = this.extractTokenUsage(event);
+							if (usage) {
+								tokenUsage = usage;
+							}
+						}
 					}
 				} catch (error) {
 					// Log malformed JSON for debugging (non-JSON lines like system output are expected)
@@ -650,14 +709,15 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					return;
 				}
 
-				// Trace mode: emit aggregated tool-call summary and final result text
+				// Trace mode: emit aggregated tool-call summary, final result, and token usage
 				if (trace && callbacks?.onIterationSummary) {
 					const toolCalls = Array.from(toolCallCounts.entries())
 						.map(([name, count]) => ({ name, count }))
 						.sort((a, b) => b.count - a.count);
 					callbacks.onIterationSummary(iterationNum, {
 						toolCalls,
-						finalResult: finalResult || undefined
+						finalResult: finalResult || undefined,
+						...(tokenUsage && { tokenUsage })
 					});
 				}
 
@@ -680,6 +740,8 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 	 *  - assistant text:        { type: 'text', text: string }
 	 *  - assistant tool_use:    { type: 'tool_use', name: string, input?: unknown }
 	 *  - user tool_result:      { type: 'tool_result', tool_use_id?: string, content?: unknown }
+	 *
+	 * Result events additionally carry a `usage` field with token counts.
 	 */
 	private isValidStreamEvent(event: unknown): event is {
 		type: string;
@@ -694,6 +756,12 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 			}>;
 		};
 		result?: string;
+		usage?: {
+			input_tokens?: number;
+			output_tokens?: number;
+			cache_creation_input_tokens?: number;
+			cache_read_input_tokens?: number;
+		};
 	} {
 		if (!event || typeof event !== 'object') {
 			return false;
