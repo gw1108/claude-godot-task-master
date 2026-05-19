@@ -13,37 +13,62 @@ export type LoopPreset =
 	| 'entropy';
 
 /**
+ * Per-iteration summary of tool-call activity (emitted at iteration end in trace mode).
+ */
+export interface LoopToolCallSummary {
+	/** Tool name (e.g. "Bash", "Edit", "Read") */
+	name: string;
+	/** Number of times this tool was invoked during the iteration */
+	count: number;
+}
+
+/**
  * Output callbacks for loop execution.
  * These allow the caller (CLI/MCP) to handle presentation while
  * the service stays focused on business logic.
  *
- * Callback modes:
- * - `onLoopStart`, `onLoopEnd`, `onIterationStart`, `onIterationEnd`, `onError`, `onStderr`: Called in both verbose and non-verbose modes
- * - `onText`, `onToolUse`: Called only in VERBOSE mode (--verbose flag)
- * - `onOutput`: Called only in NON-VERBOSE mode (default)
+ * Callback modes (controlled by `LoopConfig.verbose` and `LoopConfig.trace`):
+ * - `onLoopStart`, `onLoopEnd`, `onIterationStart`, `onIterationEnd`, `onError`, `onStderr`: all modes
+ * - `onText`, `onToolUse`: VERBOSE or TRACE mode
+ * - `onOutput`: NORMAL mode only (no --verbose, no --trace)
+ * - `onPromptSent`, `onToolInput`, `onToolResult`, `onIterationSummary`: TRACE mode only
  *
  * Presentation layers decide whether to render `onLoopStart`/`onLoopEnd` —
  * the CLI prints them only when verbose so quiet runs stay quiet.
  */
 export interface LoopOutputCallbacks {
-	/** Called once when the loop begins, before any iteration runs */
+	/** Called once when the loop begins, before any iteration runs (all modes) */
 	onLoopStart?: (startedAt: Date, totalIterations: number) => void;
-	/** Called at the start of each iteration (both modes) */
+	/** Called at the start of each iteration (all modes) */
 	onIterationStart?: (iteration: number, total: number) => void;
-	/** Called when Claude outputs text (VERBOSE MODE ONLY) */
+	/** Called when Claude outputs text (VERBOSE or TRACE mode) */
 	onText?: (text: string) => void;
-	/** Called when Claude invokes a tool (VERBOSE MODE ONLY) */
+	/** Called when Claude invokes a tool, with just the name (VERBOSE or TRACE mode) */
 	onToolUse?: (toolName: string) => void;
-	/** Called when an error occurs (both modes) */
+	/** Called when an error occurs (all modes) */
 	onError?: (message: string, severity?: 'warning' | 'error') => void;
-	/** Called for stderr output (both modes) */
+	/** Called for stderr output (all modes) */
 	onStderr?: (iteration: number, text: string) => void;
-	/** Called when non-verbose iteration completes with output (NON-VERBOSE MODE ONLY) */
+	/** Called when non-verbose iteration completes with output (NORMAL mode only) */
 	onOutput?: (output: string) => void;
-	/** Called at the end of each iteration with the result (both modes) */
+	/** Called at the end of each iteration with the result (all modes) */
 	onIterationEnd?: (iteration: LoopIteration) => void;
 	/** Called once when the loop finishes (success, early exit, or error) */
 	onLoopEnd?: (finishedAt: Date, totalDuration: number) => void;
+
+	// ---- Trace-only callbacks ----
+
+	/** Called once per iteration with the full prompt sent to the LLM (TRACE mode only) */
+	onPromptSent?: (iteration: number, prompt: string) => void;
+	/** Called with the input parameters for each tool invocation (TRACE mode only) */
+	onToolInput?: (toolName: string, input: unknown) => void;
+	/** Called with the result content returned to a tool invocation (TRACE mode only) */
+	onToolResult?: (toolName: string | undefined, result: unknown) => void;
+	/** Called at the end of each iteration with an aggregated tool-call summary (TRACE mode only) */
+	onIterationSummary?: (
+		iteration: number,
+		summary: { toolCalls: LoopToolCallSummary[]; finalResult?: string }
+	) => void;
 }
 
 /**
@@ -82,6 +107,18 @@ export interface LoopConfig {
 	 * Note: NOT compatible with `sandbox=true` (will return error).
 	 */
 	verbose?: boolean;
+	/**
+	 * Emit detailed trace events for debugging (default: false)
+	 *
+	 * When true: implies verbose streaming AND additionally emits:
+	 *  - The full prompt sent to the LLM each iteration (`onPromptSent`)
+	 *  - Per-tool-call input parameters (`onToolInput`)
+	 *  - Per-tool-call result content (`onToolResult`)
+	 *  - A per-iteration tool-call summary at iteration end (`onIterationSummary`)
+	 *
+	 * Note: NOT compatible with `sandbox=true` (same constraint as verbose).
+	 */
+	trace?: boolean;
 	/**
 	 * Brief title describing the current initiative/goal (optional)
 	 *

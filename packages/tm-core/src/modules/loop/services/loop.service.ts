@@ -157,10 +157,13 @@ export class LoopService {
 		// pre-flight failures get a non-zero duration users can reason about.
 		const loopStart = Date.now();
 
+		// Trace implies verbose streaming - both rely on the same stream-json pipeline.
+		const streaming = !!(config.verbose || config.trace);
+
 		// Validate incompatible options early - fail once, not per iteration
-		if (config.verbose && config.sandbox) {
-			const errorMsg =
-				'Verbose mode is not supported with sandbox mode. Use --verbose without --sandbox, or remove --verbose.';
+		if (streaming && config.sandbox) {
+			const flag = config.trace ? '--trace' : '--verbose';
+			const errorMsg = `${flag} mode is not supported with sandbox mode. Use ${flag} without --sandbox, or remove ${flag}.`;
 			this.reportError(config.callbacks, errorMsg);
 			return this.buildErrorResult(loopStart, errorMsg, config.callbacks);
 		}
@@ -195,12 +198,19 @@ export class LoopService {
 			config.callbacks?.onIterationStart?.(i, config.iterations);
 
 			const prompt = await this.buildPrompt(config, i);
+
+			// In trace mode, emit the full prompt sent to the LLM before invoking it.
+			if (config.trace) {
+				config.callbacks?.onPromptSent?.(i, prompt);
+			}
+
 			const iteration = await this.executeIteration(
 				prompt,
 				i,
 				config.sandbox ?? false,
 				config.includeOutput ?? false,
-				config.verbose ?? false,
+				streaming,
+				config.trace ?? false,
 				config.callbacks
 			);
 			iterations.push(iteration);
@@ -425,6 +435,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		sandbox: boolean,
 		includeOutput = false,
 		verbose = false,
+		trace = false,
 		callbacks?: LoopOutputCallbacks
 	): Promise<LoopIteration> {
 		const startTime = Date.now();
@@ -437,6 +448,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				command,
 				sandbox,
 				includeOutput,
+				trace,
 				startTime,
 				callbacks
 			);
@@ -484,11 +496,16 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 	/**
 	 * Execute an iteration with verbose output (shows Claude's work in real-time).
 	 * Uses Claude's stream-json format to display assistant messages as they arrive.
+	 *
+	 * When `trace` is true, also forwards tool-input/result events and emits a
+	 * per-iteration tool-call summary via the iteration summary callback.
+	 *
 	 * @param prompt - The prompt to send to Claude
 	 * @param iterationNum - Current iteration number (1-indexed)
 	 * @param command - The command to execute ('claude' or 'docker')
 	 * @param sandbox - Whether running in Docker sandbox mode
 	 * @param includeOutput - Whether to include full output in the result
+	 * @param trace - Whether to emit trace-level events (tool inputs/results/summary)
 	 * @param startTime - Timestamp when iteration started (for duration calculation)
 	 * @param callbacks - Optional callbacks for presentation layer output
 	 * @returns Promise resolving to the iteration result
@@ -499,10 +516,13 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		command: string,
 		sandbox: boolean,
 		includeOutput: boolean,
+		trace: boolean,
 		startTime: number,
 		callbacks?: LoopOutputCallbacks
 	): Promise<LoopIteration> {
 		const args = this.buildCommandArgs(prompt, sandbox, true);
+		// Track tool-call counts for the trace-mode iteration summary
+		const toolCallCounts = new Map<string, number>();
 
 		return new Promise((resolve) => {
 			// Prevent multiple resolutions from race conditions between error/close events
@@ -535,7 +555,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						return;
 					}
 
-					this.handleStreamEvent(event, callbacks);
+					this.handleStreamEvent(event, callbacks, trace, toolCallCounts);
 
 					// Capture final result for includeOutput feature
 					if (event.type === 'result') {
@@ -630,6 +650,17 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					return;
 				}
 
+				// Trace mode: emit aggregated tool-call summary and final result text
+				if (trace && callbacks?.onIterationSummary) {
+					const toolCalls = Array.from(toolCallCounts.entries())
+						.map(([name, count]) => ({ name, count }))
+						.sort((a, b) => b.count - a.count);
+					callbacks.onIterationSummary(iterationNum, {
+						toolCalls,
+						finalResult: finalResult || undefined
+					});
+				}
+
 				const { status, message } = this.parseCompletion(finalResult, exitCode);
 				resolveOnce({
 					iteration: iterationNum,
@@ -644,11 +675,23 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 
 	/**
 	 * Validate that a parsed JSON object has the expected stream event structure.
+	 *
+	 * Content blocks may include:
+	 *  - assistant text:        { type: 'text', text: string }
+	 *  - assistant tool_use:    { type: 'tool_use', name: string, input?: unknown }
+	 *  - user tool_result:      { type: 'tool_result', tool_use_id?: string, content?: unknown }
 	 */
 	private isValidStreamEvent(event: unknown): event is {
 		type: string;
 		message?: {
-			content?: Array<{ type: string; text?: string; name?: string }>;
+			content?: Array<{
+				type: string;
+				text?: string;
+				name?: string;
+				input?: unknown;
+				tool_use_id?: string;
+				content?: unknown;
+			}>;
 		};
 		result?: string;
 	} {
@@ -727,18 +770,48 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		event: {
 			type: string;
 			message?: {
-				content?: Array<{ type: string; text?: string; name?: string }>;
+				content?: Array<{
+					type: string;
+					text?: string;
+					name?: string;
+					input?: unknown;
+					tool_use_id?: string;
+					content?: unknown;
+				}>;
 			};
 		},
-		callbacks?: LoopOutputCallbacks
+		callbacks?: LoopOutputCallbacks,
+		trace = false,
+		toolCallCounts?: Map<string, number>
 	): void {
-		if (event.type !== 'assistant' || !event.message?.content) return;
+		if (!event.message?.content) return;
 
-		for (const block of event.message.content) {
-			if (block.type === 'text' && block.text) {
-				callbacks?.onText?.(block.text);
-			} else if (block.type === 'tool_use' && block.name) {
-				callbacks?.onToolUse?.(block.name);
+		if (event.type === 'assistant') {
+			for (const block of event.message.content) {
+				if (block.type === 'text' && block.text) {
+					callbacks?.onText?.(block.text);
+				} else if (block.type === 'tool_use' && block.name) {
+					callbacks?.onToolUse?.(block.name);
+					if (trace) {
+						toolCallCounts?.set(
+							block.name,
+							(toolCallCounts.get(block.name) ?? 0) + 1
+						);
+						if (block.input !== undefined) {
+							callbacks?.onToolInput?.(block.name, block.input);
+						}
+					}
+				}
+			}
+			return;
+		}
+
+		// In trace mode, tool_result blocks come back on `user` events.
+		if (trace && event.type === 'user') {
+			for (const block of event.message.content) {
+				if (block.type === 'tool_result') {
+					callbacks?.onToolResult?.(block.name, block.content);
+				}
 			}
 		}
 	}
