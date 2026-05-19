@@ -212,7 +212,8 @@ export class LoopService {
 				config.includeOutput ?? false,
 				streaming,
 				config.trace ?? false,
-				config.callbacks
+				config.callbacks,
+				config.progressFile
 			);
 			iterations.push(iteration);
 
@@ -380,6 +381,73 @@ export class LoopService {
 		);
 	}
 
+	private truncateForFile(text: string, maxChars = 10_000): string {
+		if (text.length <= maxChars) return text;
+		const remaining = text.length - maxChars;
+		return `${text.slice(0, maxChars)}… [truncated, ${remaining} more chars]`;
+	}
+
+	private formatJsonBlockForFile(value: unknown): string {
+		let json: string;
+		try {
+			json = JSON.stringify(value, null, 2);
+		} catch {
+			json = String(value);
+		}
+		return '```json\n' + this.truncateForFile(json) + '\n```';
+	}
+
+	private buildIterationSummaryBlock(
+		iterationNum: number,
+		summary: {
+			toolCalls: Array<{ name: string; count: number }>;
+			finalResult?: string;
+			tokenUsage?: {
+				inputTokens: number;
+				outputTokens: number;
+				cacheCreationInputTokens?: number;
+				cacheReadInputTokens?: number;
+				totalTokens: number;
+			};
+		}
+	): string {
+		const lines: string[] = [`### Iteration ${iterationNum} summary`];
+
+		if (summary.toolCalls.length > 0) {
+			lines.push('- Tool calls:');
+			for (const tc of summary.toolCalls) {
+				lines.push(`  - ${tc.name}: ${tc.count}`);
+			}
+		}
+
+		if (summary.tokenUsage) {
+			const u = summary.tokenUsage;
+			lines.push('- Tokens:');
+			lines.push(`  - input: ${u.inputTokens.toLocaleString()}`);
+			lines.push(`  - output: ${u.outputTokens.toLocaleString()}`);
+			if (u.cacheCreationInputTokens !== undefined) {
+				lines.push(
+					`  - cache write: ${u.cacheCreationInputTokens.toLocaleString()}`
+				);
+			}
+			if (u.cacheReadInputTokens !== undefined) {
+				lines.push(
+					`  - cache read: ${u.cacheReadInputTokens.toLocaleString()}`
+				);
+			}
+			lines.push(`  - total: ${u.totalTokens.toLocaleString()}`);
+		}
+
+		if (summary.finalResult) {
+			lines.push('- Final result:');
+			lines.push('```text');
+			lines.push(this.truncateForFile(summary.finalResult));
+			lines.push('```');
+		}
+
+		return lines.join('\n');
+	}
+
 	private isPreset(name: string): name is LoopPreset {
 		return checkIsPreset(name);
 	}
@@ -488,7 +556,8 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		includeOutput = false,
 		verbose = false,
 		trace = false,
-		callbacks?: LoopOutputCallbacks
+		callbacks?: LoopOutputCallbacks,
+		progressFile?: string
 	): Promise<LoopIteration> {
 		const startTime = Date.now();
 		const command = sandbox ? 'docker' : 'claude';
@@ -502,7 +571,8 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				includeOutput,
 				trace,
 				startTime,
-				callbacks
+				callbacks,
+				progressFile
 			);
 		}
 
@@ -570,19 +640,36 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		includeOutput: boolean,
 		trace: boolean,
 		startTime: number,
-		callbacks?: LoopOutputCallbacks
+		callbacks?: LoopOutputCallbacks,
+		progressFile?: string
 	): Promise<LoopIteration> {
 		const args = this.buildCommandArgs(prompt, sandbox, true);
 		// Track tool-call counts for the trace-mode iteration summary
 		const toolCallCounts = new Map<string, number>();
 
-		return new Promise((resolve) => {
-			// Prevent multiple resolutions from race conditions between error/close events
-			let isResolved = false;
+		// Per-iteration trace buffer (only allocated when trace + progressFile)
+		const traceLines: string[] | undefined =
+			trace && progressFile ? [] : undefined;
+
+		if (traceLines) {
+			traceLines.push(`## Iteration ${iterationNum}`);
+			traceLines.push(
+				`### LLM input\n\`\`\`text\n${this.truncateForFile(prompt)}\n\`\`\``
+			);
+		}
+
+		return new Promise((resolve, reject) => {
+			let settled = false;
 			const resolveOnce = (result: LoopIteration): void => {
-				if (!isResolved) {
-					isResolved = true;
+				if (!settled) {
+					settled = true;
 					resolve(result);
+				}
+			};
+			const rejectOnce = (e: unknown): void => {
+				if (!settled) {
+					settled = true;
+					reject(e);
 				}
 			};
 
@@ -608,7 +695,13 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						return;
 					}
 
-					this.handleStreamEvent(event, callbacks, trace, toolCallCounts);
+					this.handleStreamEvent(
+						event,
+						callbacks,
+						trace,
+						toolCallCounts,
+						traceLines
+					);
 
 					// Capture final result and token-usage snapshot from the result event
 					if (event.type === 'result') {
@@ -718,6 +811,30 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						toolCalls,
 						finalResult: finalResult || undefined,
 						...(tokenUsage && { tokenUsage })
+					});
+				}
+
+				// Flush per-iteration trace buffer to progress file
+				if (traceLines && progressFile) {
+					const toolCalls = Array.from(toolCallCounts.entries())
+						.map(([name, count]) => ({ name, count }))
+						.sort((a, b) => b.count - a.count);
+
+					traceLines.push(
+						this.buildIterationSummaryBlock(iterationNum, {
+							toolCalls,
+							finalResult: finalResult || undefined,
+							...(tokenUsage && { tokenUsage })
+						})
+					);
+					traceLines.push('---');
+
+					appendFile(
+						progressFile,
+						'\n' + traceLines.join('\n\n') + '\n',
+						'utf-8'
+					).catch((err: unknown) => {
+						rejectOnce(err);
 					});
 				}
 
@@ -850,7 +967,8 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		},
 		callbacks?: LoopOutputCallbacks,
 		trace = false,
-		toolCallCounts?: Map<string, number>
+		toolCallCounts?: Map<string, number>,
+		traceLines?: string[]
 	): void {
 		if (!event.message?.content) return;
 
@@ -867,6 +985,10 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						);
 						if (block.input !== undefined) {
 							callbacks?.onToolInput?.(block.name, block.input);
+							traceLines?.push(
+								`### Tool: ${block.name} input\n` +
+									this.formatJsonBlockForFile(block.input)
+							);
 						}
 					}
 				}
@@ -879,6 +1001,11 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 			for (const block of event.message.content) {
 				if (block.type === 'tool_result') {
 					callbacks?.onToolResult?.(block.name, block.content);
+					const label = block.name ?? 'unknown';
+					traceLines?.push(
+						`### Tool: ${label} result\n` +
+							this.formatJsonBlockForFile(block.content)
+					);
 				}
 			}
 		}
