@@ -77,8 +77,8 @@ PIPELINE = [
         ),
     },
     {
-        "name": "create_plan_greenunity",
-        "command": "create_plan_greenunity",
+        "name": "create_plan",
+        "command": "create_plan",
         "output_dir": "thoughts/shared/plans",
         "context_template": (
             "Stage 4 of 5 (plan). Input design doc: {input}. "

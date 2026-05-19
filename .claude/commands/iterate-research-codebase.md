@@ -1,6 +1,6 @@
 ---
 name: iterate_research_codebase
-description: Handle follow-up questions on an existing research document produced by /research_codebase. Invoked with the research doc path.
+description: Handle follow-up questions on an existing research document produced by /research-codebase. Invoked with the research doc path.
 model: opus
 ---
 
@@ -74,7 +74,7 @@ Give the user:
 
 To continue with another follow-up:
 ```
-/iterate_research_codebase [research-doc-path]
+/iterate-research-codebase [research-doc-path]
 ```
 
 ## Notes

@@ -6,11 +6,11 @@ model: opus
  
 # Refine Research Question
  
-You are tasked with sharpening a fuzzy research question about a codebase. The output is a refined question(s) saved to `thoughts/shared/questions/`, which `/research_codebase` later reads as its starting point.
+You are tasked with sharpening a fuzzy research question about a codebase. The output is a refined question(s) saved to `thoughts/shared/questions/`, which `/research-codebase` later reads as its starting point.
  
 ## Your job is to refine questions, not research
  
-You work with the user to take a vague question and turn it into a sharp one — by working back and forth with the user. The output is a saved question file that `/research_codebase` consumes.
+You work with the user to take a vague question and turn it into a sharp one — by working back and forth with the user. The output is a saved question file that `/research-codebase` consumes.
  
 If the user references a specific file in their question — a ticket, a design doc, a JSON spec, a PR description — read that file fully. It's context for the question itself.
  
