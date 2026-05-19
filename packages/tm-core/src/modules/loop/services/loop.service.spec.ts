@@ -297,6 +297,97 @@ describe('LoopService', () => {
 				expect(result.finalStatus).toBe('max_iterations');
 			});
 
+			it('should record startedAt, finishedAt, and totalDuration', async () => {
+				mockSpawnSync.mockReturnValue({
+					stdout: 'Task completed',
+					stderr: '',
+					status: 0,
+					signal: null,
+					pid: 123,
+					output: []
+				});
+
+				const before = Date.now();
+				const result = await service.run({
+					prompt: 'default',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt'
+				});
+				const after = Date.now();
+
+				expect(typeof result.startedAt).toBe('string');
+				expect(typeof result.finishedAt).toBe('string');
+				expect(typeof result.totalDuration).toBe('number');
+
+				// Timestamps should be valid ISO strings within the test window
+				const startedMs = Date.parse(result.startedAt!);
+				const finishedMs = Date.parse(result.finishedAt!);
+				expect(startedMs).toBeGreaterThanOrEqual(before);
+				expect(finishedMs).toBeLessThanOrEqual(after);
+				expect(result.totalDuration!).toBeGreaterThanOrEqual(0);
+				expect(result.totalDuration!).toBe(finishedMs - startedMs);
+			});
+
+			it('should emit onLoopStart and onLoopEnd callbacks', async () => {
+				mockSpawnSync.mockReturnValue({
+					stdout: 'Task completed',
+					stderr: '',
+					status: 0,
+					signal: null,
+					pid: 123,
+					output: []
+				});
+
+				const onLoopStart = vi.fn();
+				const onLoopEnd = vi.fn();
+
+				await service.run({
+					prompt: 'default',
+					iterations: 2,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					callbacks: { onLoopStart, onLoopEnd }
+				});
+
+				expect(onLoopStart).toHaveBeenCalledTimes(1);
+				expect(onLoopStart).toHaveBeenCalledWith(expect.any(Date), 2);
+
+				expect(onLoopEnd).toHaveBeenCalledTimes(1);
+				const [finishedAt, totalDuration] = onLoopEnd.mock.calls[0];
+				expect(finishedAt).toBeInstanceOf(Date);
+				expect(typeof totalDuration).toBe('number');
+				expect(totalDuration).toBeGreaterThanOrEqual(0);
+			});
+		});
+
+		describe('pre-flight error timing', () => {
+			it('should still record duration and call onLoopEnd when verbose+sandbox conflict aborts the run', async () => {
+				const onLoopStart = vi.fn();
+				const onLoopEnd = vi.fn();
+
+				const result = await service.run({
+					prompt: 'default',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					verbose: true,
+					sandbox: true,
+					callbacks: { onLoopStart, onLoopEnd }
+				});
+
+				expect(result.finalStatus).toBe('error');
+				expect(typeof result.totalDuration).toBe('number');
+				expect(typeof result.startedAt).toBe('string');
+				expect(typeof result.finishedAt).toBe('string');
+				// onLoopStart is gated behind iteration startup, so pre-flight failures skip it
+				expect(onLoopStart).not.toHaveBeenCalled();
+				// onLoopEnd should still fire so presentation layers can stamp completion
+				expect(onLoopEnd).toHaveBeenCalledTimes(1);
+			});
+		});
+
+		describe('successful iteration run (additional)', () => {
 			it('should run multiple iterations', async () => {
 				mockSpawnSync.mockReturnValue({
 					stdout: 'Done',

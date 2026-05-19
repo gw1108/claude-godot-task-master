@@ -126,6 +126,10 @@ export class LoopCommand extends Command {
 			// Auto-detect brief name from auth context (if available)
 			const briefName = this.tmCore.auth.getContext()?.briefName;
 
+			const verbose = options.verbose ?? false;
+			const trace = options.trace ?? false;
+			// Trace implies verbose - the service uses the same streaming path.
+			const effectiveVerbose = verbose || trace;
 			const config: Partial<LoopConfig> = {
 				iterations,
 				prompt,
@@ -135,11 +139,10 @@ export class LoopCommand extends Command {
 				// CLI defaults to including output (users typically want to see it)
 				// Domain defaults to false (library consumers opt-in explicitly)
 				includeOutput: options.output ?? true,
-				// Trace implies verbose - the service uses the same streaming path.
-				verbose: (options.verbose ?? false) || (options.trace ?? false),
-				trace: options.trace ?? false,
+				verbose: effectiveVerbose,
+				trace,
 				brief: briefName,
-				callbacks: this.createOutputCallbacks(options.trace ?? false)
+				callbacks: this.createOutputCallbacks(effectiveVerbose, trace)
 			};
 
 			const result = await this.tmCore.loop.run(config);
@@ -186,7 +189,10 @@ export class LoopCommand extends Command {
 		}
 	}
 
-	private createOutputCallbacks(trace = false): LoopOutputCallbacks {
+	private createOutputCallbacks(
+		verbose: boolean,
+		trace = false
+	): LoopOutputCallbacks {
 		const callbacks: LoopOutputCallbacks = {
 			onIterationStart: (iteration: number, total: number) => {
 				console.log();
@@ -225,6 +231,21 @@ export class LoopCommand extends Command {
 				);
 			}
 		};
+
+		// Loop-level timestamps are noise for routine runs; only render them
+		// when the user opts into deeper visibility via --verbose or --trace.
+		if (verbose) {
+			callbacks.onLoopStart = (startedAt: Date) => {
+				console.log(chalk.dim(`[Loop Start] ${startedAt.toISOString()}`));
+			};
+			callbacks.onLoopEnd = (finishedAt: Date, totalDuration: number) => {
+				console.log(
+					chalk.dim(
+						`[Loop End] ${finishedAt.toISOString()} (${this.formatDuration(totalDuration)})`
+					)
+				);
+			};
+		}
 
 		if (trace) {
 			callbacks.onPromptSent = (iteration: number, prompt: string) => {
@@ -299,9 +320,34 @@ export class LoopCommand extends Command {
 		console.log(`Total iterations: ${result.totalIterations}`);
 		console.log(`Tasks completed: ${result.tasksCompleted}`);
 		console.log(`Final status: ${this.formatStatus(result.finalStatus)}`);
+		if (typeof result.totalDuration === 'number') {
+			console.log(`Total time: ${this.formatDuration(result.totalDuration)}`);
+		}
 		if (result.errorMessage) {
 			console.log(chalk.red(`Error: ${result.errorMessage}`));
 		}
+	}
+
+	/**
+	 * Format a millisecond duration into a compact human string:
+	 * sub-second → "850ms", sub-minute → "42.3s", sub-hour → "5m 12s",
+	 * longer → "1h 03m 07s". Keeps the trailing parenthetical and the
+	 * summary line readable at any loop length.
+	 */
+	private formatDuration(ms: number): string {
+		if (!Number.isFinite(ms) || ms < 0) return `${ms}ms`;
+		if (ms < 1000) return `${ms}ms`;
+		const totalSeconds = ms / 1000;
+		if (totalSeconds < 60) return `${totalSeconds.toFixed(1)}s`;
+		const hours = Math.floor(totalSeconds / 3600);
+		const minutes = Math.floor((totalSeconds % 3600) / 60);
+		const seconds = Math.floor(totalSeconds % 60);
+		if (hours > 0) {
+			const mm = String(minutes).padStart(2, '0');
+			const ss = String(seconds).padStart(2, '0');
+			return `${hours}h ${mm}m ${ss}s`;
+		}
+		return `${minutes}m ${seconds}s`;
 	}
 
 	private formatStatus(status: LoopResult['finalStatus']): string {

@@ -248,6 +248,96 @@ describe('LoopCommand', () => {
 			expect(allOutput).toContain('5');
 			expect(allOutput).toContain('3');
 		});
+
+		it('should display total time when totalDuration is provided', () => {
+			const displayResult = (loopCommand as any).displayResult.bind(
+				loopCommand
+			);
+			const mockResult: LoopResult = {
+				iterations: [],
+				totalIterations: 2,
+				tasksCompleted: 2,
+				finalStatus: 'max_iterations',
+				totalDuration: 75_500 // 1m 15s
+			};
+
+			displayResult(mockResult);
+
+			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
+			expect(allOutput).toContain('Total time');
+			expect(allOutput).toContain('1m 15s');
+		});
+
+		it('should omit total time when totalDuration is missing', () => {
+			const displayResult = (loopCommand as any).displayResult.bind(
+				loopCommand
+			);
+			const mockResult: LoopResult = {
+				iterations: [],
+				totalIterations: 1,
+				tasksCompleted: 1,
+				finalStatus: 'max_iterations'
+			};
+
+			displayResult(mockResult);
+
+			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
+			expect(allOutput).not.toContain('Total time');
+		});
+	});
+
+	describe('formatDuration', () => {
+		const cases: Array<[number, string]> = [
+			[0, '0ms'],
+			[850, '850ms'],
+			[1500, '1.5s'],
+			[42_300, '42.3s'],
+			[60_000, '1m 0s'],
+			[75_500, '1m 15s'],
+			[3_600_000, '1h 00m 00s'],
+			[3_787_000, '1h 03m 07s']
+		];
+
+		for (const [ms, expected] of cases) {
+			it(`should format ${ms}ms as "${expected}"`, () => {
+				const formatDuration = (loopCommand as any).formatDuration.bind(
+					loopCommand
+				);
+				expect(formatDuration(ms)).toBe(expected);
+			});
+		}
+	});
+
+	describe('createOutputCallbacks', () => {
+		it('should NOT attach loop timestamp callbacks when verbose is false', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(false);
+
+			expect(callbacks.onLoopStart).toBeUndefined();
+			expect(callbacks.onLoopEnd).toBeUndefined();
+		});
+
+		it('should attach loop timestamp callbacks when verbose is true', () => {
+			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
+				loopCommand
+			);
+			const callbacks = createCallbacks(true);
+
+			expect(typeof callbacks.onLoopStart).toBe('function');
+			expect(typeof callbacks.onLoopEnd).toBe('function');
+
+			callbacks.onLoopStart!(new Date('2026-05-18T10:00:00.000Z'), 3);
+			callbacks.onLoopEnd!(new Date('2026-05-18T10:05:30.000Z'), 330_000);
+
+			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
+			expect(allOutput).toContain('[Loop Start]');
+			expect(allOutput).toContain('2026-05-18T10:00:00.000Z');
+			expect(allOutput).toContain('[Loop End]');
+			expect(allOutput).toContain('2026-05-18T10:05:30.000Z');
+			expect(allOutput).toContain('5m 30s');
+		});
 	});
 
 	describe('execute integration', () => {
@@ -530,7 +620,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(false);
+			const callbacks = createCallbacks(false, false);
 
 			expect(callbacks.onPromptSent).toBeUndefined();
 			expect(callbacks.onToolInput).toBeUndefined();
@@ -542,7 +632,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true);
+			const callbacks = createCallbacks(true, true);
 
 			expect(typeof callbacks.onPromptSent).toBe('function');
 			expect(typeof callbacks.onToolInput).toBe('function');
@@ -554,7 +644,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true);
+			const callbacks = createCallbacks(true, true);
 
 			callbacks.onPromptSent(2, 'hello LLM');
 
@@ -568,7 +658,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true);
+			const callbacks = createCallbacks(true, true);
 
 			callbacks.onIterationSummary(1, {
 				toolCalls: [

@@ -153,6 +153,10 @@ export class LoopService {
 
 	/** Run a loop with the given configuration */
 	async run(config: LoopConfig): Promise<LoopResult> {
+		// Track loop wall-clock from the moment we accept the config so even
+		// pre-flight failures get a non-zero duration users can reason about.
+		const loopStart = Date.now();
+
 		// Trace implies verbose streaming - both rely on the same stream-json pipeline.
 		const streaming = !!(config.verbose || config.trace);
 
@@ -161,13 +165,7 @@ export class LoopService {
 			const flag = config.trace ? '--trace' : '--verbose';
 			const errorMsg = `${flag} mode is not supported with sandbox mode. Use ${flag} without --sandbox, or remove ${flag}.`;
 			this.reportError(config.callbacks, errorMsg);
-			return {
-				iterations: [],
-				totalIterations: 0,
-				tasksCompleted: 0,
-				finalStatus: 'error',
-				errorMessage: errorMsg
-			};
+			return this.buildErrorResult(loopStart, errorMsg, config.callbacks);
 		}
 
 		// The default preset's prompt drives task-master commands every iteration.
@@ -180,21 +178,20 @@ export class LoopService {
 			if (!tmCheck.available) {
 				const errorMsg = tmCheck.error || 'task-master CLI not available';
 				this.reportError(config.callbacks, errorMsg);
-				return {
-					iterations: [],
-					totalIterations: 0,
-					tasksCompleted: 0,
-					finalStatus: 'error',
-					errorMessage: errorMsg
-				};
+				return this.buildErrorResult(loopStart, errorMsg, config.callbacks);
 			}
 		}
 
 		this._isRunning = true;
 		const iterations: LoopIteration[] = [];
 		let tasksCompleted = 0;
+		const startedAt = new Date(loopStart);
 
-		await this.initProgressFile(config);
+		await this.initProgressFile(config, startedAt);
+
+		// Notify presentation layer the loop has begun. Layered above iteration
+		// callbacks so verbose CLIs can stamp the start time once, not per-iteration.
+		config.callbacks?.onLoopStart?.(startedAt, config.iterations);
 
 		for (let i = 1; i <= config.iterations && this._isRunning; i++) {
 			// Notify presentation layer of iteration start
@@ -227,11 +224,18 @@ export class LoopService {
 					config,
 					iterations,
 					tasksCompleted + 1,
-					'all_complete'
+					'all_complete',
+					loopStart
 				);
 			}
 			if (iteration.status === 'blocked') {
-				return this.finalize(config, iterations, tasksCompleted, 'blocked');
+				return this.finalize(
+					config,
+					iterations,
+					tasksCompleted,
+					'blocked',
+					loopStart
+				);
 			}
 			if (iteration.status === 'success') {
 				tasksCompleted++;
@@ -243,7 +247,13 @@ export class LoopService {
 			}
 		}
 
-		return this.finalize(config, iterations, tasksCompleted, 'max_iterations');
+		return this.finalize(
+			config,
+			iterations,
+			tasksCompleted,
+			'max_iterations',
+			loopStart
+		);
 	}
 
 	/** Stop the loop after current iteration completes */
@@ -257,17 +267,50 @@ export class LoopService {
 		config: LoopConfig,
 		iterations: LoopIteration[],
 		tasksCompleted: number,
-		finalStatus: LoopResult['finalStatus']
+		finalStatus: LoopResult['finalStatus'],
+		loopStart: number
 	): Promise<LoopResult> {
 		this._isRunning = false;
+		const finishedAtMs = Date.now();
+		const finishedAt = new Date(finishedAtMs);
+		const totalDuration = finishedAtMs - loopStart;
 		const result: LoopResult = {
 			iterations,
 			totalIterations: iterations.length,
 			tasksCompleted,
-			finalStatus
+			finalStatus,
+			startedAt: new Date(loopStart).toISOString(),
+			finishedAt: finishedAt.toISOString(),
+			totalDuration
 		};
 		await this.appendFinalSummary(config.progressFile, result);
+		config.callbacks?.onLoopEnd?.(finishedAt, totalDuration);
 		return result;
+	}
+
+	/**
+	 * Build a synchronous error result for pre-flight failures, ensuring
+	 * timing fields and the onLoopEnd callback stay consistent with finalize().
+	 */
+	private buildErrorResult(
+		loopStart: number,
+		errorMessage: string,
+		callbacks?: LoopOutputCallbacks
+	): LoopResult {
+		const finishedAtMs = Date.now();
+		const finishedAt = new Date(finishedAtMs);
+		const totalDuration = finishedAtMs - loopStart;
+		callbacks?.onLoopEnd?.(finishedAt, totalDuration);
+		return {
+			iterations: [],
+			totalIterations: 0,
+			tasksCompleted: 0,
+			finalStatus: 'error',
+			errorMessage,
+			startedAt: new Date(loopStart).toISOString(),
+			finishedAt: finishedAt.toISOString(),
+			totalDuration
+		};
 	}
 
 	/**
@@ -288,11 +331,14 @@ export class LoopService {
 		}
 	}
 
-	private async initProgressFile(config: LoopConfig): Promise<void> {
+	private async initProgressFile(
+		config: LoopConfig,
+		startedAt: Date
+	): Promise<void> {
 		await mkdir(path.dirname(config.progressFile), { recursive: true });
 		const lines = [
 			'# Taskmaster Loop Progress',
-			`# Started: ${new Date().toISOString()}`,
+			`# Started: ${startedAt.toISOString()}`,
 			...(config.brief ? [`# Brief: ${config.brief}`] : []),
 			`# Preset: ${config.prompt}`,
 			`# Max Iterations: ${config.iterations}`,
@@ -313,14 +359,21 @@ export class LoopService {
 		file: string,
 		result: LoopResult
 	): Promise<void> {
+		// Prefer the result's recorded timestamp so the progress file aligns
+		// exactly with what consumers (CLI summary, MCP response) report.
+		const finishedAt = result.finishedAt ?? new Date().toISOString();
+		const durationLine =
+			typeof result.totalDuration === 'number'
+				? `\n- Total duration: ${result.totalDuration}ms`
+				: '';
 		await appendFile(
 			file,
 			`
 ---
-# Loop Complete: ${new Date().toISOString()}
+# Loop Complete: ${finishedAt}
 - Total iterations: ${result.totalIterations}
 - Tasks completed: ${result.tasksCompleted}
-- Final status: ${result.finalStatus}
+- Final status: ${result.finalStatus}${durationLine}
 `,
 			'utf-8'
 		);

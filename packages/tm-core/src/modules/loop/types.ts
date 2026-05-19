@@ -28,12 +28,17 @@ export interface LoopToolCallSummary {
  * the service stays focused on business logic.
  *
  * Callback modes (controlled by `LoopConfig.verbose` and `LoopConfig.trace`):
- * - `onIterationStart`, `onIterationEnd`, `onError`, `onStderr`: all modes
+ * - `onLoopStart`, `onLoopEnd`, `onIterationStart`, `onIterationEnd`, `onError`, `onStderr`: all modes
  * - `onText`, `onToolUse`: VERBOSE or TRACE mode
  * - `onOutput`: NORMAL mode only (no --verbose, no --trace)
  * - `onPromptSent`, `onToolInput`, `onToolResult`, `onIterationSummary`: TRACE mode only
+ *
+ * Presentation layers decide whether to render `onLoopStart`/`onLoopEnd` —
+ * the CLI prints them only when verbose so quiet runs stay quiet.
  */
 export interface LoopOutputCallbacks {
+	/** Called once when the loop begins, before any iteration runs (all modes) */
+	onLoopStart?: (startedAt: Date, totalIterations: number) => void;
 	/** Called at the start of each iteration (all modes) */
 	onIterationStart?: (iteration: number, total: number) => void;
 	/** Called when Claude outputs text (VERBOSE or TRACE mode) */
@@ -48,6 +53,8 @@ export interface LoopOutputCallbacks {
 	onOutput?: (output: string) => void;
 	/** Called at the end of each iteration with the result (all modes) */
 	onIterationEnd?: (iteration: LoopIteration) => void;
+	/** Called once when the loop finishes (success, early exit, or error) */
+	onLoopEnd?: (finishedAt: Date, totalDuration: number) => void;
 
 	// ---- Trace-only callbacks ----
 
@@ -166,4 +173,10 @@ export interface LoopResult {
 	finalStatus: 'all_complete' | 'max_iterations' | 'blocked' | 'error';
 	/** Error message when finalStatus is 'error' (optional) */
 	errorMessage?: string;
+	/** ISO-8601 timestamp when the loop started */
+	startedAt?: string;
+	/** ISO-8601 timestamp when the loop finished */
+	finishedAt?: string;
+	/** Total wall-clock duration of the loop in milliseconds (includes inter-iteration sleeps) */
+	totalDuration?: number;
 }
