@@ -361,25 +361,25 @@ export class LoopCommand extends Command {
 	}
 
 	/**
-	 * Format a millisecond duration into a compact human string:
-	 * sub-second → "850ms", sub-minute → "42.3s", sub-hour → "5m 12s",
-	 * longer → "1h 03m 07s". Keeps the trailing parenthetical and the
-	 * summary line readable at any loop length.
+	 * Format a millisecond duration as days/hours/minutes/seconds, rounded
+	 * to the nearest second. Larger zero units are omitted (e.g. "5s",
+	 * "1m 5s", "2h 15m 30s", "1d 2h 15m 30s").
 	 */
 	private formatDuration(ms: number): string {
 		if (!Number.isFinite(ms) || ms < 0) return `${ms}ms`;
-		if (ms < 1000) return `${ms}ms`;
-		const totalSeconds = ms / 1000;
-		if (totalSeconds < 60) return `${totalSeconds.toFixed(1)}s`;
-		const hours = Math.floor(totalSeconds / 3600);
+		const totalSeconds = Math.round(ms / 1000);
+		const days = Math.floor(totalSeconds / 86400);
+		const hours = Math.floor((totalSeconds % 86400) / 3600);
 		const minutes = Math.floor((totalSeconds % 3600) / 60);
-		const seconds = Math.floor(totalSeconds % 60);
-		if (hours > 0) {
-			const mm = String(minutes).padStart(2, '0');
-			const ss = String(seconds).padStart(2, '0');
-			return `${hours}h ${mm}m ${ss}s`;
-		}
-		return `${minutes}m ${seconds}s`;
+		const seconds = totalSeconds % 60;
+
+		const parts: string[] = [];
+		if (days > 0) parts.push(`${days}d`);
+		if (days > 0 || hours > 0) parts.push(`${hours}h`);
+		if (days > 0 || hours > 0 || minutes > 0) parts.push(`${minutes}m`);
+		parts.push(`${seconds}s`);
+
+		return parts.join(' ');
 	}
 
 	private formatStatus(status: LoopResult['finalStatus']): string {

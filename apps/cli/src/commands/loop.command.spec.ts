@@ -258,14 +258,14 @@ describe('LoopCommand', () => {
 				totalIterations: 2,
 				tasksCompleted: 2,
 				finalStatus: 'max_iterations',
-				totalDuration: 75_500 // 1m 15s
+				totalDuration: 75_500 // 1m 16s (rounded to nearest second)
 			};
 
 			displayResult(mockResult);
 
 			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
 			expect(allOutput).toContain('Total time');
-			expect(allOutput).toContain('1m 15s');
+			expect(allOutput).toContain('1m 16s');
 		});
 
 		it('should omit total time when totalDuration is missing', () => {
@@ -288,14 +288,16 @@ describe('LoopCommand', () => {
 
 	describe('formatDuration', () => {
 		const cases: Array<[number, string]> = [
-			[0, '0ms'],
-			[850, '850ms'],
-			[1500, '1.5s'],
-			[42_300, '42.3s'],
+			[0, '0s'],
+			[850, '1s'],
+			[1500, '2s'],
+			[42_300, '42s'],
 			[60_000, '1m 0s'],
-			[75_500, '1m 15s'],
-			[3_600_000, '1h 00m 00s'],
-			[3_787_000, '1h 03m 07s']
+			[75_500, '1m 16s'],
+			[3_600_000, '1h 0m 0s'],
+			[3_787_000, '1h 3m 7s'],
+			[86_400_000, '1d 0h 0m 0s'],
+			[90_065_000, '1d 1h 1m 5s']
 		];
 
 		for (const [ms, expected] of cases) {

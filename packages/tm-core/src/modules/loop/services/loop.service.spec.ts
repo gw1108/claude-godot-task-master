@@ -15,6 +15,7 @@ import {
 import { LoopService, type LoopServiceOptions } from './loop.service.js';
 import * as childProcess from 'node:child_process';
 import * as fsPromises from 'node:fs/promises';
+import { EventEmitter } from 'node:events';
 
 // Mock child_process and fs/promises
 vi.mock('node:child_process');
@@ -823,6 +824,185 @@ describe('LoopService', () => {
 					expect.stringContaining('# Loop Complete'),
 					'utf-8'
 				);
+			});
+		});
+
+		describe('trace file persistence', () => {
+			function makeMockSpawnChild(
+				stdoutLines: string[] = [],
+				exitCode: number | null = 0
+			) {
+				const child = new EventEmitter();
+				const stdout = new EventEmitter();
+				const stderr = new EventEmitter();
+
+				Object.assign(child, {
+					stdout,
+					stderr,
+					killed: false,
+					kill: vi.fn(),
+					pid: 99999
+				});
+
+				setImmediate(() => {
+					for (const line of stdoutLines) {
+						stdout.emit('data', Buffer.from(line + '\n', 'utf-8'));
+					}
+					stdout.emit('end');
+					child.emit('close', exitCode);
+				});
+
+				return child;
+			}
+
+			it('test 1 — prompt text reaches appendFile without ANSI escape sequences', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					trace: true
+				});
+
+				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
+				const traceCall = calls.find(
+					([, c]) =>
+						typeof c === 'string' && (c as string).includes('## Iteration')
+				);
+				expect(traceCall).toBeDefined();
+				expect(traceCall![1] as string).not.toMatch(/\x1b\[[0-9;]*m/);
+			});
+
+			it('test 2 — tool input JSON reaches appendFile pretty-printed and capped at 10 KB', async () => {
+				const bigInput = { data: 'x'.repeat(15_000) };
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'assistant',
+							message: {
+								content: [
+									{
+										type: 'tool_use',
+										name: 'Bash',
+										input: bigInput
+									}
+								]
+							}
+						}),
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					trace: true
+				});
+
+				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
+				const traceCall = calls.find(
+					([, c]) => typeof c === 'string' && (c as string).includes('```json')
+				);
+				expect(traceCall).toBeDefined();
+				expect(traceCall![1] as string).toContain('… [truncated,');
+			});
+
+			it('test 3 — token-usage rows reach appendFile as specified markdown', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'result',
+							result: 'done',
+							usage: { input_tokens: 1234, output_tokens: 567 }
+						})
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					trace: true
+				});
+
+				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
+				const traceCall = calls.find(
+					([, c]) =>
+						typeof c === 'string' &&
+						(c as string).includes('Iteration') &&
+						(c as string).includes('summary')
+				);
+				expect(traceCall).toBeDefined();
+				expect(traceCall![1] as string).toContain('input: 1,234');
+				expect(traceCall![1] as string).toContain('output: 567');
+				expect(traceCall![1] as string).toContain('total: 1,801');
+			});
+
+			it('test 4 — multiple tool_use blocks produce exactly one appendFile call with ## Iteration marker', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'assistant',
+							message: {
+								content: [
+									{
+										type: 'tool_use',
+										name: 'Bash',
+										input: { command: 'ls' }
+									}
+								]
+							}
+						}),
+						JSON.stringify({
+							type: 'assistant',
+							message: {
+								content: [
+									{
+										type: 'tool_use',
+										name: 'Read',
+										input: { file: 'foo.txt' }
+									}
+								]
+							}
+						}),
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					trace: true
+				});
+
+				const iterCalls = vi
+					.mocked(fsPromises.appendFile)
+					.mock.calls.filter(
+						([, c]) =>
+							typeof c === 'string' && (c as string).includes('## Iteration 1')
+					);
+				expect(iterCalls).toHaveLength(1);
+			});
+
+			it('test 5 — truncation marker appears when payload exceeds 10 KB', () => {
+				const svc = service as unknown as {
+					truncateForFile: (s: string, n?: number) => string;
+				};
+				const longStr = 'a'.repeat(10_001);
+				const result = svc.truncateForFile(longStr);
+				expect(result).toContain('… [truncated, 1 more chars]');
+				expect(result.startsWith('a'.repeat(10_000))).toBe(true);
 			});
 		});
 
