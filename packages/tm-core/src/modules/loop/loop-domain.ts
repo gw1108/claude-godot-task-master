@@ -192,8 +192,8 @@ export class LoopDomain {
 			tag: partial.tag,
 			sandbox: partial.sandbox ?? false,
 			includeOutput: partial.includeOutput ?? false,
-			verbose: partial.verbose ?? false,
-			trace: partial.trace ?? false,
+			traceLevel: partial.traceLevel ?? 'none',
+			sessionPersistence: partial.sessionPersistence ?? false,
 			brief: partial.brief,
 			callbacks: partial.callbacks
 		};

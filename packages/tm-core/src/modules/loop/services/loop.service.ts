@@ -13,8 +13,10 @@ import type {
 	LoopOutputCallbacks,
 	LoopPreset,
 	LoopResult,
-	LoopTokenUsage
+	LoopTokenUsage,
+	LoopTraceLevel
 } from '../types.js';
+import { atLeast } from './trace-level.js';
 
 export interface LoopServiceOptions {
 	projectRoot: string;
@@ -158,13 +160,12 @@ export class LoopService {
 		// pre-flight failures get a non-zero duration users can reason about.
 		const loopStart = Date.now();
 
-		// Trace implies verbose streaming - both rely on the same stream-json pipeline.
-		const streaming = !!(config.verbose || config.trace);
+		const level = config.traceLevel ?? 'none';
+		const streaming = atLeast(level, 'verbose');
 
 		// Validate incompatible options early - fail once, not per iteration
 		if (streaming && config.sandbox) {
-			const flag = config.trace ? '--trace' : '--verbose';
-			const errorMsg = `${flag} mode is not supported with sandbox mode. Use ${flag} without --sandbox, or remove ${flag}.`;
+			const errorMsg = `--tracelevel ${level} is not supported with sandbox mode. Use --tracelevel ${level} without --sandbox, or set --tracelevel none.`;
 			this.reportError(config.callbacks, errorMsg);
 			return this.buildErrorResult(loopStart, errorMsg, config.callbacks);
 		}
@@ -201,7 +202,7 @@ export class LoopService {
 			const prompt = await this.buildPrompt(config, i);
 
 			// In trace mode, emit the full prompt sent to the LLM before invoking it.
-			if (config.trace) {
+			if (atLeast(level, 'trace')) {
 				config.callbacks?.onPromptSent?.(i, prompt);
 			}
 
@@ -210,10 +211,10 @@ export class LoopService {
 				i,
 				config.sandbox ?? false,
 				config.includeOutput ?? false,
-				streaming,
-				config.trace ?? false,
+				level,
 				config.callbacks,
-				config.progressFile
+				config.progressFile,
+				config.sessionPersistence ?? false
 			);
 			iterations.push(iteration);
 
@@ -554,29 +555,35 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		iterationNum: number,
 		sandbox: boolean,
 		includeOutput = false,
-		verbose = false,
-		trace = false,
+		level: LoopTraceLevel = 'none',
 		callbacks?: LoopOutputCallbacks,
-		progressFile?: string
+		progressFile?: string,
+		sessionPersistence = false
 	): Promise<LoopIteration> {
 		const startTime = Date.now();
 		const command = sandbox ? 'docker' : 'claude';
 
-		if (verbose) {
+		if (atLeast(level, 'verbose')) {
 			return this.executeVerboseIteration(
 				prompt,
 				iterationNum,
 				command,
 				sandbox,
 				includeOutput,
-				trace,
+				level,
 				startTime,
 				callbacks,
-				progressFile
+				progressFile,
+				sessionPersistence
 			);
 		}
 
-		const args = this.buildCommandArgs(prompt, sandbox, false);
+		const args = this.buildCommandArgs(
+			prompt,
+			sandbox,
+			false,
+			sessionPersistence
+		);
 		const result = spawnSync(command, args, {
 			cwd: this.projectRoot,
 			encoding: 'utf-8',
@@ -638,18 +645,24 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		command: string,
 		sandbox: boolean,
 		includeOutput: boolean,
-		trace: boolean,
+		level: LoopTraceLevel,
 		startTime: number,
 		callbacks?: LoopOutputCallbacks,
-		progressFile?: string
+		progressFile?: string,
+		sessionPersistence = false
 	): Promise<LoopIteration> {
-		const args = this.buildCommandArgs(prompt, sandbox, true);
+		const args = this.buildCommandArgs(
+			prompt,
+			sandbox,
+			true,
+			sessionPersistence
+		);
 		// Track tool-call counts for the trace-mode iteration summary
 		const toolCallCounts = new Map<string, number>();
 
 		// Per-iteration trace buffer (only allocated when trace + progressFile)
 		const traceLines: string[] | undefined =
-			trace && progressFile ? [] : undefined;
+			atLeast(level, 'trace') && progressFile ? [] : undefined;
 
 		if (traceLines) {
 			traceLines.push(`## Iteration ${iterationNum}`);
@@ -698,7 +711,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					this.handleStreamEvent(
 						event,
 						callbacks,
-						trace,
+						level,
 						toolCallCounts,
 						traceLines
 					);
@@ -706,7 +719,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					// Capture final result and token-usage snapshot from the result event
 					if (event.type === 'result') {
 						finalResult = typeof event.result === 'string' ? event.result : '';
-						if (trace) {
+						if (atLeast(level, 'trace')) {
 							const usage = this.extractTokenUsage(event);
 							if (usage) {
 								tokenUsage = usage;
@@ -803,7 +816,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				}
 
 				// Trace mode: emit aggregated tool-call summary, final result, and token usage
-				if (trace && callbacks?.onIterationSummary) {
+				if (atLeast(level, 'trace') && callbacks?.onIterationSummary) {
 					const toolCalls = Array.from(toolCallCounts.entries())
 						.map(([name, count]) => ({ name, count }))
 						.sort((a, b) => b.count - a.count);
@@ -906,16 +919,24 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 	private buildCommandArgs(
 		prompt: string,
 		sandbox: boolean,
-		verbose: boolean
+		verbose: boolean,
+		sessionPersistence: boolean
 	): string[] {
 		if (sandbox) {
-			return ['sandbox', 'run', 'claude', '-p', prompt];
+			const args = ['sandbox', 'run', 'claude', '-p', prompt];
+			if (!sessionPersistence) {
+				args.push('--no-session-persistence');
+			}
+			return args;
 		}
 
 		const args = ['-p', prompt, '--dangerously-skip-permissions'];
 		if (verbose) {
 			// Use stream-json format to show Claude's work in real-time
 			args.push('--output-format', 'stream-json', '--verbose');
+		}
+		if (!sessionPersistence) {
+			args.push('--no-session-persistence');
 		}
 		return args;
 	}
@@ -966,7 +987,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 			};
 		},
 		callbacks?: LoopOutputCallbacks,
-		trace = false,
+		level: LoopTraceLevel = 'none',
 		toolCallCounts?: Map<string, number>,
 		traceLines?: string[]
 	): void {
@@ -978,7 +999,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					callbacks?.onText?.(block.text);
 				} else if (block.type === 'tool_use' && block.name) {
 					callbacks?.onToolUse?.(block.name);
-					if (trace) {
+					if (atLeast(level, 'trace')) {
 						toolCallCounts?.set(
 							block.name,
 							(toolCallCounts.get(block.name) ?? 0) + 1
@@ -997,7 +1018,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		}
 
 		// In trace mode, tool_result blocks come back on `user` events.
-		if (trace && event.type === 'user') {
+		if (atLeast(level, 'trace') && event.type === 'user') {
 			for (const block of event.message.content) {
 				if (block.type === 'tool_result') {
 					callbacks?.onToolResult?.(block.name, block.content);
