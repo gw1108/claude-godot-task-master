@@ -52,7 +52,8 @@ export class LoopService {
 			cwd: this.projectRoot,
 			timeout: 10000,
 			encoding: 'utf-8',
-			stdio: ['ignore', 'pipe', 'pipe']
+			stdio: ['ignore', 'pipe', 'pipe'],
+			shell: process.platform === 'win32'
 		});
 
 		if (result.error) {
