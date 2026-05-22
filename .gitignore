@@ -103,4 +103,8 @@ apps/extension/vsix-build/
 
 .scannerwork
 
+# Python bytecode cache
+__pycache__/
+*.pyc
+
 # OS specific

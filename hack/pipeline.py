@@ -27,6 +27,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+sys.path.insert(0, str(PROJECT_ROOT / "thoughts"))
+from archive_thoughts import archive_thoughts  # noqa: E402
+
 RUN_ID_PATTERN = re.compile(r"tag-[a-f0-9]{6}")
 
 # Auto-advance behavior: once the tagged output file appears in the stage's
@@ -327,6 +330,17 @@ def main() -> None:
     print(f"  PIPELINE COMPLETE  [RUN_ID: {run_id}]")
     print(f"  Plan implemented from: {current_input}")
     print(f"{'=' * 70}\n")
+
+    print("[pipeline] Auto-archiving thoughts/shared/...")
+    try:
+        moved = archive_thoughts()
+        if moved:
+            print(f"[pipeline] Archived {len(moved)} file(s):")
+            print("\n".join(moved))
+        else:
+            print("[pipeline] Nothing to archive.")
+    except Exception as exc:
+        print(f"[pipeline] WARNING: archive step failed: {exc}")
 
 
 if __name__ == "__main__":

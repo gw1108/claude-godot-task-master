@@ -22,6 +22,11 @@ export interface LoopServiceOptions {
 	projectRoot: string;
 }
 
+type IterationFileLine = {
+	level: 'verbose' | 'trace' | 'separator';
+	content: string;
+};
+
 export class LoopService {
 	private readonly projectRoot: string;
 	private readonly logger = getLogger('LoopService');
@@ -450,6 +455,40 @@ export class LoopService {
 		return lines.join('\n');
 	}
 
+	private tagEntry(entry: IterationFileLine): string {
+		if (entry.level === 'separator') return entry.content;
+
+		const tag = entry.level === 'trace' ? 'TRACE' : 'VERBOSE';
+		const lines = entry.content.split('\n');
+		let inFence = false;
+		const tagged: string[] = [];
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (/^```\w*$/.test(trimmed)) {
+				inFence = !inFence;
+				tagged.push(line);
+				continue;
+			}
+			if (inFence) {
+				tagged.push(line);
+				continue;
+			}
+			if (trimmed === '') {
+				tagged.push(line);
+				continue;
+			}
+			const headerMatch = /^(#{1,6})(\s+.*)$/.exec(line);
+			if (headerMatch) {
+				tagged.push(`${headerMatch[1]} [${tag}]${headerMatch[2]}`);
+			} else {
+				tagged.push(`[${tag}] ${line}`);
+			}
+		}
+
+		return tagged.join('\n');
+	}
+
 	private isPreset(name: string): name is LoopPreset {
 		return checkIsPreset(name);
 	}
@@ -663,16 +702,20 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 
 		// Per-iteration file buffer (allocated when verbose or trace + progressFile;
 		// reachable only from the verbose path, which itself requires at least 'verbose').
-		const iterationFileLines: string[] | undefined = progressFile
+		const iterationFileLines: IterationFileLine[] | undefined = progressFile
 			? []
 			: undefined;
 
 		if (iterationFileLines) {
-			iterationFileLines.push(`## Iteration ${iterationNum}`);
+			iterationFileLines.push({
+				level: 'verbose',
+				content: `## Iteration ${iterationNum}`
+			});
 			if (atLeast(level, 'trace')) {
-				iterationFileLines.push(
-					`### LLM input\n\`\`\`text\n${this.truncateForFile(prompt)}\n\`\`\``
-				);
+				iterationFileLines.push({
+					level: 'trace',
+					content: `### LLM input\n\`\`\`text\n${this.truncateForFile(prompt)}\n\`\`\``
+				});
 			}
 		}
 
@@ -838,18 +881,21 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						.map(([name, count]) => ({ name, count }))
 						.sort((a, b) => b.count - a.count);
 
-					iterationFileLines.push(
-						this.buildIterationSummaryBlock(iterationNum, {
+					iterationFileLines.push({
+						level: 'verbose',
+						content: this.buildIterationSummaryBlock(iterationNum, {
 							toolCalls,
 							finalResult: finalResult || undefined,
 							...(tokenUsage && { tokenUsage })
 						})
-					);
-					iterationFileLines.push('---');
+					});
+					iterationFileLines.push({ level: 'separator', content: '---' });
 
 					appendFile(
 						progressFile!,
-						'\n' + iterationFileLines.join('\n\n') + '\n',
+						'\n' +
+							iterationFileLines.map((e) => this.tagEntry(e)).join('\n\n') +
+							'\n',
 						'utf-8'
 					).catch((err: unknown) => {
 						rejectOnce(err);
@@ -994,7 +1040,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		callbacks?: LoopOutputCallbacks,
 		level: LoopTraceLevel = 'none',
 		toolCallCounts?: Map<string, number>,
-		iterationFileLines?: string[]
+		iterationFileLines?: IterationFileLine[]
 	): void {
 		if (!event.message?.content) return;
 
@@ -1013,10 +1059,12 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					if (atLeast(level, 'trace')) {
 						if (block.input !== undefined) {
 							callbacks?.onToolInput?.(block.name, block.input);
-							iterationFileLines?.push(
-								`### Tool: ${block.name} input\n` +
+							iterationFileLines?.push({
+								level: 'trace',
+								content:
+									`### Tool: ${block.name} input\n` +
 									this.formatJsonBlockForFile(block.input)
-							);
+							});
 						}
 					}
 				}
@@ -1030,10 +1078,12 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				if (block.type === 'tool_result') {
 					callbacks?.onToolResult?.(block.name, block.content);
 					const label = block.name ?? 'unknown';
-					iterationFileLines?.push(
-						`### Tool: ${label} result\n` +
+					iterationFileLines?.push({
+						level: 'trace',
+						content:
+							`### Tool: ${label} result\n` +
 							this.formatJsonBlockForFile(block.content)
-					);
+					});
 				}
 			}
 		}

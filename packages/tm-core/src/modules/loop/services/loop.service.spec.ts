@@ -873,7 +873,8 @@ describe('LoopService', () => {
 				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
 				const traceCall = calls.find(
 					([, c]) =>
-						typeof c === 'string' && (c as string).includes('## Iteration')
+						typeof c === 'string' &&
+						(c as string).includes('## [VERBOSE] Iteration')
 				);
 				expect(traceCall).toBeDefined();
 				expect(traceCall![1] as string).not.toMatch(/\x1b\[[0-9;]*m/);
@@ -990,7 +991,8 @@ describe('LoopService', () => {
 					.mocked(fsPromises.appendFile)
 					.mock.calls.filter(
 						([, c]) =>
-							typeof c === 'string' && (c as string).includes('## Iteration 1')
+							typeof c === 'string' &&
+							(c as string).includes('## [VERBOSE] Iteration 1')
 					);
 				expect(iterCalls).toHaveLength(1);
 			});
@@ -1003,6 +1005,131 @@ describe('LoopService', () => {
 				const result = svc.truncateForFile(longStr);
 				expect(result).toContain('… [truncated, 1 more chars]');
 				expect(result.startsWith('a'.repeat(10_000))).toBe(true);
+			});
+
+			it('tags verbose-minimum lines with [VERBOSE] in the progress file', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'verbose'
+				});
+
+				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
+				const iterCall = calls.find(
+					([, c]) =>
+						typeof c === 'string' && (c as string).includes('[VERBOSE]')
+				);
+				expect(iterCall).toBeDefined();
+				const content = iterCall![1] as string;
+				expect(content).toContain('## [VERBOSE] Iteration 1');
+				expect(content).toContain('### [VERBOSE] Iteration 1 summary');
+				// Separator passes through untagged
+				expect(content).toContain('---');
+				expect(content).not.toContain('[VERBOSE] ---');
+			});
+
+			it('tags trace-minimum lines with [TRACE] and verbose-minimum with [VERBOSE]', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'assistant',
+							message: {
+								content: [
+									{
+										type: 'tool_use',
+										id: 'tu1',
+										name: 'bash',
+										input: { cmd: 'ls' }
+									}
+								]
+							}
+						}),
+						JSON.stringify({
+							type: 'user',
+							message: {
+								content: [
+									{
+										type: 'tool_result',
+										tool_use_id: 'tu1',
+										content: 'file.txt'
+									}
+								]
+							}
+						}),
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'trace'
+				});
+
+				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
+				const iterCall = calls.find(
+					([, c]) =>
+						typeof c === 'string' &&
+						(c as string).includes('## [VERBOSE] Iteration')
+				);
+				expect(iterCall).toBeDefined();
+				const content = iterCall![1] as string;
+
+				// Verbose-minimum headers
+				expect(content).toContain('## [VERBOSE] Iteration 1');
+				expect(content).toContain('### [VERBOSE] Iteration 1 summary');
+
+				// Trace-minimum headers
+				expect(content).toContain('### [TRACE] LLM input');
+				expect(content).toContain('### [TRACE] Tool: bash input');
+				// tool_result blocks don't carry a name field in Claude's API → label is 'unknown'
+				expect(content).toContain('### [TRACE] Tool: unknown result');
+
+				// Fence markers pass through untagged
+				expect(content).not.toContain('[TRACE] ```');
+				expect(content).not.toContain('[VERBOSE] ```');
+			});
+
+			it('prefixes body lines in iteration summary block with [VERBOSE]', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'result',
+							result: 'done',
+							usage: { input_tokens: 100, output_tokens: 50 }
+						})
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'verbose'
+				});
+
+				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
+				const iterCall = calls.find(
+					([, c]) =>
+						typeof c === 'string' && (c as string).includes('[VERBOSE]')
+				);
+				expect(iterCall).toBeDefined();
+				const content = iterCall![1] as string;
+				// Body bullet lines should be prefixed
+				expect(content).toMatch(/\[VERBOSE\] - Tokens:/);
+				expect(content).toMatch(/\[VERBOSE\]   - input:/);
+				expect(content).toMatch(/\[VERBOSE\]   - output:/);
 			});
 		});
 
