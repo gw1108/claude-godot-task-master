@@ -102,6 +102,12 @@ export interface LoopOutputCallbacks {
 }
 
 /**
+ * Verbosity level for loop output.
+ * 'none' = silent; 'verbose' = real-time streaming; 'trace' = verbose + debug events + progress file writes.
+ */
+export type LoopTraceLevel = 'none' | 'verbose' | 'trace';
+
+/**
  * Configuration options for a loop execution
  */
 export interface LoopConfig {
@@ -128,28 +134,13 @@ export interface LoopConfig {
 	 */
 	includeOutput?: boolean;
 	/**
-	 * Show Claude's work in real-time instead of just the result (default: false)
-	 *
-	 * When true: Output appears as Claude generates it (shows thinking, tool calls)
-	 * When false: Output appears only after iteration completes
-	 *
-	 * Independent of `includeOutput` - controls display timing, not capture.
-	 * Note: NOT compatible with `sandbox=true` (will return error).
+	 * Verbosity level for loop output (default: 'none').
+	 * 'verbose' streams Claude's work in real-time (NOT compatible with sandbox=true).
+	 * 'trace' additionally emits onPromptSent, onToolInput, onToolResult, onIterationSummary
+	 * and writes trace details to the progress file.
+	 * NOT compatible with sandbox=true.
 	 */
-	verbose?: boolean;
-	/**
-	 * Emit detailed trace events for debugging (default: false)
-	 *
-	 * When true: implies verbose streaming AND additionally emits:
-	 *  - The full prompt sent to the LLM each iteration (`onPromptSent`)
-	 *  - Per-tool-call input parameters (`onToolInput`)
-	 *  - Per-tool-call result content (`onToolResult`)
-	 *  - A per-iteration tool-call summary at iteration end, including a
-	 *    token-usage snapshot when the CLI reports one (`onIterationSummary`)
-	 *
-	 * Note: NOT compatible with `sandbox=true` (same constraint as verbose).
-	 */
-	trace?: boolean;
+	traceLevel?: LoopTraceLevel;
 	/**
 	 * Brief title describing the current initiative/goal (optional)
 	 *
@@ -158,6 +149,15 @@ export interface LoopConfig {
 	 * Example: "Implement streaming output for loop command"
 	 */
 	brief?: string;
+	/**
+	 * Persist the claude session for each iteration (default: false).
+	 *
+	 * When false (the default), `--no-session-persistence` is appended to every
+	 * claude invocation so loop iterations do not accumulate in `claude --resume`
+	 * history. Set to true to allow session persistence (e.g., for debugging a
+	 * specific iteration with `claude --resume`).
+	 */
+	sessionPersistence?: boolean;
 	/**
 	 * Output callbacks for presentation layer (CLI/MCP).
 	 * If not provided, the service runs silently (no console output).

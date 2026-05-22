@@ -8,12 +8,13 @@ import {
 	type LoopIteration,
 	type LoopOutputCallbacks,
 	type LoopResult,
+	type LoopTraceLevel,
 	PRESET_NAMES,
 	type TmCore,
 	createTmCore
 } from '@tm/core';
 import chalk from 'chalk';
-import { Command } from 'commander';
+import { Command, InvalidArgumentError, Option } from 'commander';
 import { displayCommandHeader } from '../utils/display-helpers.js';
 import { displayError } from '../utils/error-handler.js';
 import { getProjectRoot } from '../utils/project-root.js';
@@ -26,8 +27,16 @@ export interface LoopCommandOptions {
 	project?: string;
 	sandbox?: boolean;
 	output?: boolean;
-	verbose?: boolean;
-	trace?: boolean;
+	tracelevel?: LoopTraceLevel;
+	sessionPersistence?: boolean;
+}
+
+function parseSessionPersistence(value: string): boolean {
+	if (value === 'true') return true;
+	if (value === 'false') return false;
+	throw new InvalidArgumentError(
+		`Invalid value "${value}" for --session-persistence. Expected "true" or "false".`
+	);
 }
 
 export class LoopCommand extends Command {
@@ -58,10 +67,21 @@ export class LoopCommand extends Command {
 				'--no-output',
 				'Exclude full Claude output from iteration results'
 			)
-			.option('-v, --verbose', "Show Claude's work in real-time")
-			.option(
-				'--trace',
-				'Show full LLM input/output and tool-call details (implies --verbose)'
+			.addOption(
+				new Option(
+					'--tracelevel <level>',
+					'Loop verbosity: none, verbose, or trace (trace includes verbose output and writes details to the progress file)'
+				)
+					.choices(['none', 'verbose', 'trace'])
+					.default('none')
+			)
+			.addOption(
+				new Option(
+					'--session-persistence <true|false>',
+					'Persist the claude session for each loop iteration. Default: false (sessions are NOT persisted, preventing history pollution). Pass "true" to enable persistence (e.g., to allow claude --resume on a specific iteration).'
+				)
+					.argParser(parseSessionPersistence)
+					.default(false)
 			)
 			.action((options: LoopCommandOptions) => this.execute(options));
 	}
@@ -126,10 +146,7 @@ export class LoopCommand extends Command {
 			// Auto-detect brief name from auth context (if available)
 			const briefName = this.tmCore.auth.getContext()?.briefName;
 
-			const verbose = options.verbose ?? false;
-			const trace = options.trace ?? false;
-			// Trace implies verbose - the service uses the same streaming path.
-			const effectiveVerbose = verbose || trace;
+			const traceLevel = options.tracelevel ?? 'none';
 			const config: Partial<LoopConfig> = {
 				iterations,
 				prompt,
@@ -139,8 +156,8 @@ export class LoopCommand extends Command {
 				// CLI defaults to including output (users typically want to see it)
 				// Domain defaults to false (library consumers opt-in explicitly)
 				includeOutput: options.output ?? true,
-				verbose: effectiveVerbose,
-				trace,
+				traceLevel,
+				sessionPersistence: options.sessionPersistence ?? false,
 				brief: briefName,
 				callbacks: this.createOutputCallbacks()
 			};

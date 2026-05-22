@@ -1,6 +1,6 @@
 /**
  * @fileoverview loop MCP tool
- * Run the Task Master loop to autonomously work through tasks
+ * Run task-master loop iterations via MCP
  */
 
 import type { FastMCP } from 'fastmcp';
@@ -9,73 +9,133 @@ import type { ToolContext } from '../../shared/types.js';
 import { handleApiResult, withToolContext } from '../../shared/utils.js';
 
 const LoopSchema = z.object({
-	projectRoot: z
-		.string()
-		.describe('Absolute path to the project root directory'),
-	iterations: z
-		.number()
-		.optional()
-		.describe('Maximum number of iterations (default: 10)'),
 	prompt: z
 		.string()
 		.optional()
-		.describe('Preset name or path to custom prompt file (default: "default")'),
-	progressFile: z.string().optional().describe('Path to write progress output'),
-	tag: z.string().optional().describe('Only work on tasks with this tag')
+		.describe(
+			'Loop prompt or preset name. Defaults to "default" (runs the built-in task-master preset).'
+		),
+	iterations: z
+		.number()
+		.int()
+		.positive()
+		.optional()
+		.describe(
+			'Maximum number of loop iterations. Defaults to 10 (or pending task count for the default preset).'
+		),
+	sleepSeconds: z
+		.number()
+		.int()
+		.nonnegative()
+		.optional()
+		.describe('Seconds to wait between iterations. Defaults to 5.'),
+	sandbox: z
+		.boolean()
+		.optional()
+		.default(false)
+		.describe('Run each iteration inside a docker sandbox. Default: false.'),
+	traceLevel: z
+		.enum(['none', 'verbose', 'trace'])
+		.optional()
+		.default('none')
+		.describe(
+			'Trace verbosity: "none" (default) | "verbose" (streaming output) | "trace" (full tool call detail).'
+		),
+	includeOutput: z
+		.boolean()
+		.optional()
+		.default(false)
+		.describe('Include claude stdout in the loop result. Default: false.'),
+	sessionPersistence: z
+		.boolean()
+		.optional()
+		.default(false)
+		.describe(
+			'Persist the claude session for each iteration. Default: false (appends --no-session-persistence to each claude call, preventing session history pollution).'
+		),
+	progressFile: z
+		.string()
+		.optional()
+		.describe(
+			'Absolute path to the progress file. Defaults to <projectRoot>/.taskmaster/progress.txt.'
+		),
+	tag: z
+		.string()
+		.optional()
+		.describe(
+			'Task tag to scope the loop to. Omit to use the currently active tag.'
+		),
+	projectRoot: z
+		.string()
+		.describe('Absolute path to the project root directory.')
 });
 
 type LoopArgs = z.infer<typeof LoopSchema>;
 
 /**
- * Register the loop tool with the MCP server
+ * Register the loop MCP tool with the server
  */
 export function registerLoopTool(server: FastMCP) {
 	server.addTool({
 		name: 'loop',
 		description:
-			'Run the Task Master loop to autonomously work through tasks, one task per iteration.',
+			'Run task-master loop: repeatedly invoke claude with a prompt (or the built-in default preset) for up to N iterations, sleeping between each. Use this to drive autonomous task completion without manual intervention.',
 		parameters: LoopSchema,
+		annotations: {
+			title: 'Run Task Master Loop'
+		},
 		execute: withToolContext(
 			'loop',
 			async (args: LoopArgs, { log, tmCore }: ToolContext) => {
-				log.info(`Starting Task Master loop in ${args.projectRoot}`);
+				const {
+					prompt,
+					iterations,
+					sleepSeconds,
+					sandbox,
+					traceLevel,
+					includeOutput,
+					sessionPersistence,
+					progressFile,
+					tag,
+					projectRoot
+				} = args;
 
 				try {
+					log.info(`Starting loop in ${projectRoot}`);
+
 					const result = await tmCore.loop.run({
-						iterations: args.iterations,
-						prompt: args.prompt,
-						progressFile: args.progressFile,
-						tag: args.tag,
-						callbacks: {
-							onError: (message: string, severity?: 'warning' | 'error') => {
-								if (severity === 'warning') {
-									log.warn(message);
-								} else {
-									log.error(message);
-								}
-							},
-							onIterationEnd: (iteration) => {
-								log.info(
-									`Iteration ${iteration.iteration} completed: ${iteration.status}`
-								);
-							}
-						}
+						prompt,
+						iterations,
+						sleepSeconds,
+						sandbox,
+						traceLevel,
+						includeOutput,
+						sessionPersistence,
+						progressFile,
+						tag
 					});
+
+					log.info(
+						`Loop finished: ${result.finalStatus}, ${result.tasksCompleted} tasks completed`
+					);
 
 					return handleApiResult({
 						result: { success: true, data: result },
 						log,
-						projectRoot: args.projectRoot
+						projectRoot
 					});
 				} catch (error: any) {
 					log.error(`Error in loop: ${error.message}`);
+					if (error.stack) {
+						log.debug(error.stack);
+					}
 					return handleApiResult({
 						result: {
 							success: false,
-							error: { message: `Failed to run loop: ${error.message}` }
+							error: { message: `Loop failed: ${error.message}` }
 						},
 						log,
-						projectRoot: args.projectRoot
+						projectRoot
 					});
 				}
 			}

@@ -170,6 +170,21 @@ describe('LoopCommand', () => {
 			const option = loopCommand.options.find((o) => o.long === '--project');
 			expect(option).toBeDefined();
 		});
+
+		it('session-persistence defaults to false', () => {
+			const option = loopCommand.options.find(
+				(o) => o.long === '--session-persistence'
+			);
+			expect(option?.defaultValue).toBe(false);
+		});
+
+		it('rejects invalid --session-persistence value', () => {
+			// Commander calls process.exit(1) on InvalidArgumentError; our spy throws instead
+			expect(() =>
+				loopCommand.parseOptions(['--session-persistence', 'yes'])
+			).toThrow();
+			expect(processExitSpy).toHaveBeenCalledWith(1);
+		});
 	});
 
 	describe('validateIterations', () => {
@@ -556,23 +571,21 @@ describe('LoopCommand', () => {
 			expect(allOutput).toContain('Test Task');
 		});
 
-		it('should pass trace flag through to loop config', async () => {
+		it('should pass tracelevel trace through to loop config', async () => {
 			const result = createMockResult();
 			mockLoopRun.mockResolvedValue(result);
 
 			const execute = (loopCommand as any).execute.bind(loopCommand);
-			await execute({ trace: true });
+			await execute({ tracelevel: 'trace' });
 
 			expect(mockLoopRun).toHaveBeenCalledWith(
 				expect.objectContaining({
-					trace: true,
-					// trace implies verbose streaming
-					verbose: true
+					traceLevel: 'trace'
 				})
 			);
 		});
 
-		it('should not enable trace by default', async () => {
+		it('should default tracelevel to none', async () => {
 			const result = createMockResult();
 			mockLoopRun.mockResolvedValue(result);
 
@@ -581,24 +594,58 @@ describe('LoopCommand', () => {
 
 			expect(mockLoopRun).toHaveBeenCalledWith(
 				expect.objectContaining({
-					trace: false,
-					verbose: false
+					traceLevel: 'none'
 				})
 			);
 		});
 
-		it('should preserve plain --verbose without enabling trace', async () => {
+		it('should pass tracelevel verbose through to loop config', async () => {
 			const result = createMockResult();
 			mockLoopRun.mockResolvedValue(result);
 
 			const execute = (loopCommand as any).execute.bind(loopCommand);
-			await execute({ verbose: true });
+			await execute({ tracelevel: 'verbose' });
 
 			expect(mockLoopRun).toHaveBeenCalledWith(
 				expect.objectContaining({
-					trace: false,
-					verbose: true
+					traceLevel: 'verbose'
 				})
+			);
+		});
+
+		it('passes sessionPersistence true to LoopConfig when option is true', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({ sessionPersistence: true });
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({ sessionPersistence: true })
+			);
+		});
+
+		it('passes sessionPersistence false to LoopConfig when option is false', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({ sessionPersistence: false });
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({ sessionPersistence: false })
+			);
+		});
+
+		it('defaults sessionPersistence to false when option is not provided', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({});
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({ sessionPersistence: false })
 			);
 		});
 	});
