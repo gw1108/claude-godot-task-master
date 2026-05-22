@@ -33,8 +33,7 @@ for ((i=1; i<=$1; i++)); do
   echo ""
   echo "━━━ Iteration $i of $1 ━━━"
 
-  result=$(docker sandbox run claude -p "@.taskmaster/tasks/tasks.json @.taskmaster/loop-progress.txt @CLAUDE.md \
-TASK: Implement ONE task/subtask for the tm loop feature. \
+  result=$(docker sandbox run claude -p "TASK: Implement ONE task/subtask for the tm loop feature. \
 \
 PROCESS: \
 1. Run task-master next (or use MCP) to get the next available task/subtask. \

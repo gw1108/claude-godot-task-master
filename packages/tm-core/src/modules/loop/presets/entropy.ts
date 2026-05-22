@@ -8,10 +8,6 @@ const ENTROPY_PRESET_TEXT = `# Taskmaster Loop - Entropy (Code Smells)
 
 Find code smells and clean them up. ONE cleanup per session.
 
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (smells fixed, areas cleaned)
-
 ## Code Smells to Target
 
 - Long functions (>60 lines) - extract into smaller functions

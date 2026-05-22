@@ -7,10 +7,6 @@ const TEST_COVERAGE_PRESET_TEXT = `# Taskmaster Loop - Test Coverage
 
 Find uncovered code and write meaningful tests. ONE test per session.
 
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (coverage %, what was tested)
-
 ## What Makes a Great Test
 
 A great test covers behavior users depend on. It tests a feature that, if broken,

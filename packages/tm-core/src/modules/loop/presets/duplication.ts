@@ -7,10 +7,6 @@ const DUPLICATION_PRESET_TEXT = `# Taskmaster Loop - Duplication
 
 Find duplicated code and refactor into shared utilities. ONE refactor per session.
 
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (clones refactored, duplication %)
-
 ## Process
 
 1. Run duplication detection (\`npx jscpd .\`, or similar tool)

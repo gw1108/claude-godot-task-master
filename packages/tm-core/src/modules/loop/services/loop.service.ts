@@ -502,10 +502,8 @@ export class LoopService {
 
 	private buildContextHeader(config: LoopConfig, iteration: number): string {
 		const tagInfo = config.tag ? ` (tag: ${config.tag})` : '';
-		// Note: tasks.json reference removed - let the preset control task source to avoid confusion
-		return `@${config.progressFile} @CLAUDE.md
-
-Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
+		// Note: explicit @progressFile / @CLAUDE.md references removed - let the prompt opt in to extra context when needed
+		return `Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 	}
 
 	private async buildPrompt(
