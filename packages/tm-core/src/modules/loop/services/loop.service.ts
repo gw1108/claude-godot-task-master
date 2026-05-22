@@ -4,7 +4,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { appendFile, mkdir, readFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getLogger } from '../../../common/logger/index.js';
 import { PRESETS, isPreset as checkIsPreset } from '../presets/index.js';
@@ -28,10 +28,32 @@ type IterationFileLine = {
 	content: string;
 };
 
+type IterationTelemetry = {
+	iterationNum: number;
+	totalToolCalls: number;
+	taskMasterToolCalls: number;
+	writeToolCalls: number;
+	nonWriteToolCalls: number;
+	tokenUsage?: LoopTokenUsage;
+	estimatedContext: number;
+	percentOf1M?: number;
+	modelId?: string;
+	status: LoopIteration['status'];
+	duration?: number;
+};
+
 export class LoopService {
 	private readonly projectRoot: string;
 	private readonly logger = getLogger('LoopService');
 	private _isRunning = false;
+	private iterationTelemetry: IterationTelemetry[] = [];
+
+	private static readonly WRITE_TOOLS = new Set([
+		'Write',
+		'Edit',
+		'MultiEdit',
+		'NotebookEdit'
+	]);
 
 	constructor(options: LoopServiceOptions) {
 		this.projectRoot = options.projectRoot;
@@ -187,6 +209,7 @@ export class LoopService {
 		}
 
 		this._isRunning = true;
+		this.iterationTelemetry = [];
 		const iterations: LoopIteration[] = [];
 		let tasksCompleted = 0;
 		const startedAt = new Date(loopStart);
@@ -216,7 +239,8 @@ export class LoopService {
 				level,
 				config.callbacks,
 				config.progressFile,
-				config.sessionPersistence ?? false
+				config.sessionPersistence ?? false,
+				config.iterations
 			);
 			iterations.push(iteration);
 
@@ -289,6 +313,13 @@ export class LoopService {
 			totalDuration
 		};
 		await this.appendFinalSummary(config.progressFile, result);
+		if (this.iterationTelemetry.length > 0) {
+			await this.writeTotalsFile(
+				config.progressFile,
+				result,
+				this.iterationTelemetry
+			);
+		}
 		config.callbacks?.onLoopEnd?.(finishedAt, totalDuration);
 		return result;
 	}
@@ -384,6 +415,87 @@ export class LoopService {
 		);
 	}
 
+	private async writeTotalsFile(
+		progressFile: string,
+		result: LoopResult,
+		telemetry: IterationTelemetry[]
+	): Promise<void> {
+		if (telemetry.length === 0) return;
+
+		let totalTools = 0,
+			totalTM = 0,
+			totalWrites = 0,
+			totalNW = 0;
+		let totalInput = 0,
+			totalOutput = 0,
+			totalCacheWrite = 0,
+			totalCacheRead = 0,
+			totalTokens = 0;
+		let totalContext = 0;
+
+		for (const t of telemetry) {
+			totalTools += t.totalToolCalls;
+			totalTM += t.taskMasterToolCalls;
+			totalWrites += t.writeToolCalls;
+			totalNW += t.nonWriteToolCalls;
+			totalContext += t.estimatedContext;
+			if (t.tokenUsage) {
+				totalInput += t.tokenUsage.inputTokens;
+				totalOutput += t.tokenUsage.outputTokens;
+				totalCacheWrite += t.tokenUsage.cacheCreationInputTokens ?? 0;
+				totalCacheRead += t.tokenUsage.cacheReadInputTokens ?? 0;
+				totalTokens += t.tokenUsage.totalTokens;
+			}
+		}
+
+		const fmt = (n: number) => n.toLocaleString('en-US');
+		const durationLine =
+			typeof result.totalDuration === 'number'
+				? `- Total duration: ${fmt(result.totalDuration)}ms`
+				: '';
+
+		const tableHeader = `| Iter | Tool calls | TM | Writes | Non-writes | Total tokens | Est. context | % of 1M |`;
+		const tableSep = `|------|------------|----|----|--------|---------|-------|----------|`;
+		const tableRows = telemetry
+			.map((t) => {
+				const pct =
+					t.percentOf1M !== undefined ? `${t.percentOf1M.toFixed(1)}%` : '—';
+				const tok = t.tokenUsage ? fmt(t.tokenUsage.totalTokens) : '—';
+				return `| ${t.iterationNum} | ${fmt(t.totalToolCalls)} | ${fmt(t.taskMasterToolCalls)} | ${fmt(t.writeToolCalls)} | ${fmt(t.nonWriteToolCalls)} | ${tok} | ${fmt(t.estimatedContext)} | ${pct} |`;
+			})
+			.join('\n');
+
+		const content = [
+			'# Loop Totals',
+			`- Final status: ${result.finalStatus}`,
+			`- Tasks completed: ${fmt(result.tasksCompleted)}`,
+			`- Total iterations: ${fmt(result.totalIterations)}`,
+			durationLine,
+			'',
+			'## Tool Call Totals',
+			`- Total: ${fmt(totalTools)}`,
+			`  - Task-master: ${fmt(totalTM)}`,
+			`  - Writes: ${fmt(totalWrites)}`,
+			`  - Non-writes: ${fmt(totalNW)}`,
+			'',
+			'## Token Totals',
+			`- Input: ${fmt(totalInput)}`,
+			`- Output: ${fmt(totalOutput)}`,
+			`- Cache read: ${fmt(totalCacheRead)}`,
+			`- Cache write: ${fmt(totalCacheWrite)}`,
+			`- Total: ${fmt(totalTokens)}`,
+			`- Estimated context: ${fmt(totalContext)} tokens`,
+			'',
+			'## Per-Iteration Summary',
+			tableHeader,
+			tableSep,
+			tableRows,
+			''
+		].join('\n');
+
+		await writeFile(this.totalsFilePath(progressFile), content, 'utf-8');
+	}
+
 	private truncateForFile(text: string, maxChars = 10_000): string {
 		if (text.length <= maxChars) return text;
 		const remaining = text.length - maxChars;
@@ -412,33 +524,68 @@ export class LoopService {
 				cacheReadInputTokens?: number;
 				totalTokens: number;
 			};
+			totalToolCalls?: number;
+			taskMasterToolCalls?: number;
+			writeToolCalls?: number;
+			nonWriteToolCalls?: number;
+			estimatedContext?: number;
+			percentOf1M?: number;
+			modelId?: string;
 		}
 	): string {
 		const lines: string[] = [`### Iteration ${iterationNum} summary`];
 
+		if (summary.totalToolCalls !== undefined) {
+			lines.push(
+				`- Tool calls: ${summary.totalToolCalls.toLocaleString('en-US')} total`
+			);
+			if (summary.taskMasterToolCalls !== undefined)
+				lines.push(
+					`  - Task-master: ${summary.taskMasterToolCalls.toLocaleString('en-US')}`
+				);
+			if (summary.writeToolCalls !== undefined)
+				lines.push(
+					`  - Writes: ${summary.writeToolCalls.toLocaleString('en-US')}`
+				);
+			if (summary.nonWriteToolCalls !== undefined)
+				lines.push(
+					`  - Non-writes: ${summary.nonWriteToolCalls.toLocaleString('en-US')}`
+				);
+		}
+
 		if (summary.toolCalls.length > 0) {
-			lines.push('- Tool calls:');
+			lines.push('- Tool calls by name:');
 			for (const tc of summary.toolCalls) {
-				lines.push(`  - ${tc.name}: ${tc.count}`);
+				lines.push(`  - ${tc.name}: ${tc.count.toLocaleString('en-US')}`);
 			}
 		}
 
 		if (summary.tokenUsage) {
 			const u = summary.tokenUsage;
 			lines.push('- Tokens:');
-			lines.push(`  - input: ${u.inputTokens.toLocaleString()}`);
-			lines.push(`  - output: ${u.outputTokens.toLocaleString()}`);
+			lines.push(`  - input: ${u.inputTokens.toLocaleString('en-US')}`);
+			lines.push(`  - output: ${u.outputTokens.toLocaleString('en-US')}`);
 			if (u.cacheCreationInputTokens !== undefined) {
 				lines.push(
-					`  - cache write: ${u.cacheCreationInputTokens.toLocaleString()}`
+					`  - cache write: ${u.cacheCreationInputTokens.toLocaleString('en-US')}`
 				);
 			}
 			if (u.cacheReadInputTokens !== undefined) {
 				lines.push(
-					`  - cache read: ${u.cacheReadInputTokens.toLocaleString()}`
+					`  - cache read: ${u.cacheReadInputTokens.toLocaleString('en-US')}`
 				);
 			}
-			lines.push(`  - total: ${u.totalTokens.toLocaleString()}`);
+			lines.push(`  - total: ${u.totalTokens.toLocaleString('en-US')}`);
+		}
+
+		if (summary.estimatedContext !== undefined) {
+			const pct =
+				summary.percentOf1M !== undefined
+					? ` (${summary.percentOf1M.toFixed(1)}% of 1M)`
+					: '';
+			lines.push(
+				`- Context: ${summary.estimatedContext.toLocaleString('en-US')} tokens${pct}`
+			);
 		}
 
 		if (summary.finalResult) {
@@ -565,6 +712,68 @@ export class LoopService {
 		};
 	}
 
+	private classifyToolCalls(counts: Map<string, number>): {
+		totalToolCalls: number;
+		taskMasterToolCalls: number;
+		writeToolCalls: number;
+		nonWriteToolCalls: number;
+	} {
+		let total = 0,
+			tm = 0,
+			writes = 0;
+		for (const [name, count] of counts) {
+			total += count;
+			if (name.startsWith('mcp__task-master-ai__')) tm += count;
+			if (LoopService.WRITE_TOOLS.has(name)) writes += count;
+		}
+		return {
+			totalToolCalls: total,
+			taskMasterToolCalls: tm,
+			writeToolCalls: writes,
+			nonWriteToolCalls: total - writes
+		};
+	}
+
+	private iterationFilePath(
+		progressFile: string,
+		iterationNum: number,
+		totalIterations: number
+	): string {
+		const padWidth = String(totalIterations).length;
+		const padded = String(iterationNum).padStart(padWidth, '0');
+		const p = path.parse(progressFile);
+		return path.format({
+			dir: p.dir,
+			name: `${p.name}.iter-${padded}`,
+			ext: p.ext
+		});
+	}
+
+	private totalsFilePath(progressFile: string): string {
+		const p = path.parse(progressFile);
+		return path.format({ dir: p.dir, name: `${p.name}.totals`, ext: p.ext });
+	}
+
+	private buildProgressLine(
+		iterationNum: number,
+		status: LoopIteration['status'],
+		classification: {
+			totalToolCalls: number;
+			taskMasterToolCalls: number;
+			writeToolCalls: number;
+			nonWriteToolCalls: number;
+		},
+		estimatedContext?: number,
+		percentOf1M?: number
+	): string {
+		const toolPart = `tools: ${classification.totalToolCalls.toLocaleString('en-US')} (TM:${classification.taskMasterToolCalls} W:${classification.writeToolCalls} NW:${classification.nonWriteToolCalls})`;
+		const ctxPart =
+			estimatedContext !== undefined
+				? ` | ctx: ${estimatedContext.toLocaleString('en-US')} tokens${percentOf1M !== undefined ? ` (${percentOf1M.toFixed(1)}% of 1M)` : ''}`
+				: '';
+		return `- Iter ${iterationNum}: ${status} | ${toolPart}${ctxPart}`;
+	}
+
 	private parseCompletion(
 		output: string,
 		exitCode: number
@@ -592,7 +801,8 @@ export class LoopService {
 		level: LoopTraceLevel = 'none',
 		callbacks?: LoopOutputCallbacks,
 		progressFile?: string,
-		sessionPersistence = false
+		sessionPersistence = false,
+		totalIterations = 1
 	): Promise<LoopIteration> {
 		const startTime = Date.now();
 		const command = sandbox ? 'docker' : 'claude';
@@ -608,7 +818,8 @@ export class LoopService {
 				startTime,
 				callbacks,
 				progressFile,
-				sessionPersistence
+				sessionPersistence,
+				totalIterations
 			);
 		}
 
@@ -683,7 +894,8 @@ export class LoopService {
 		startTime: number,
 		callbacks?: LoopOutputCallbacks,
 		progressFile?: string,
-		sessionPersistence = false
+		sessionPersistence = false,
+		totalIterations = 1
 	): Promise<LoopIteration> {
 		const args = this.buildCommandArgs(
 			prompt,
@@ -737,6 +949,7 @@ export class LoopService {
 			let stdoutEnded = false;
 			let finalResult = '';
 			let tokenUsage: LoopTokenUsage | undefined;
+			let modelId: string | undefined;
 			let buffer = '';
 
 			const processLine = (line: string): void => {
@@ -767,6 +980,12 @@ export class LoopService {
 						if (usage) {
 							tokenUsage = usage;
 						}
+					}
+					if (
+						event.type === 'system' &&
+						typeof (event as Record<string, unknown>).model === 'string'
+					) {
+						modelId = (event as Record<string, unknown>).model as string;
 					}
 				} catch (error) {
 					// Log malformed JSON for debugging (non-JSON lines like system output are expected)
@@ -857,42 +1076,93 @@ export class LoopService {
 					return;
 				}
 
+				// Compute classification data — shared by onIterationSummary and file routing
+				const toolCalls = Array.from(toolCallCounts.entries())
+					.map(([name, count]) => ({ name, count }))
+					.sort((a, b) => b.count - a.count);
+				const classification = this.classifyToolCalls(toolCallCounts);
+				const estimatedContext =
+					(tokenUsage?.inputTokens ?? 0) +
+					(tokenUsage?.cacheCreationInputTokens ?? 0) +
+					(tokenUsage?.cacheReadInputTokens ?? 0);
+				const percentOf1M =
+					modelId && /opus/i.test(modelId) && tokenUsage != null
+						? (estimatedContext / 1_000_000) * 100
+						: undefined;
+
 				// Trace mode: emit aggregated tool-call summary, final result, and token usage
 				if (atLeast(level, 'trace') && callbacks?.onIterationSummary) {
-					const toolCalls = Array.from(toolCallCounts.entries())
-						.map(([name, count]) => ({ name, count }))
-						.sort((a, b) => b.count - a.count);
 					callbacks.onIterationSummary(iterationNum, {
 						toolCalls,
 						finalResult: finalResult || undefined,
-						...(tokenUsage && { tokenUsage })
+						...(tokenUsage && { tokenUsage }),
+						totalToolCalls: classification.totalToolCalls,
+						taskMasterToolCalls: classification.taskMasterToolCalls,
+						writeToolCalls: classification.writeToolCalls,
+						nonWriteToolCalls: classification.nonWriteToolCalls,
+						estimatedContext,
+						...(percentOf1M !== undefined && { percentOf1M }),
+						...(modelId !== undefined && { modelId })
 					});
 				}
 
-				// Flush per-iteration file buffer to progress file
+				// Route per-iteration verbose buffer to sibling file; write compact line to progress.txt
 				if (iterationFileLines) {
-					const toolCalls = Array.from(toolCallCounts.entries())
-						.map(([name, count]) => ({ name, count }))
-						.sort((a, b) => b.count - a.count);
+					const { status: iterStatus } = this.parseCompletion(
+						finalResult,
+						exitCode
+					);
 
 					iterationFileLines.push({
 						level: 'verbose',
 						content: this.buildIterationSummaryBlock(iterationNum, {
 							toolCalls,
 							finalResult: finalResult || undefined,
-							...(tokenUsage && { tokenUsage })
+							...(tokenUsage && { tokenUsage }),
+							...classification,
+							estimatedContext,
+							...(percentOf1M !== undefined && { percentOf1M }),
+							...(modelId !== undefined && { modelId })
 						})
 					});
 					iterationFileLines.push({ level: 'separator', content: '---' });
 
-					appendFile(
+					const siblingPath = this.iterationFilePath(
 						progressFile!,
-						'\n' +
-							iterationFileLines.map((e) => this.tagEntry(e)).join('\n\n') +
-							'\n',
+						iterationNum,
+						totalIterations
+					);
+					writeFile(
+						siblingPath,
+						iterationFileLines.map((e) => this.tagEntry(e)).join('\n\n') + '\n',
 						'utf-8'
 					).catch((err: unknown) => {
 						rejectOnce(err);
+					});
+
+					appendFile(
+						progressFile!,
+						this.buildProgressLine(
+							iterationNum,
+							iterStatus,
+							classification,
+							estimatedContext,
+							percentOf1M
+						) + '\n',
+						'utf-8'
+					).catch((err: unknown) => {
+						rejectOnce(err);
+					});
+
+					this.iterationTelemetry.push({
+						iterationNum,
+						...classification,
+						tokenUsage: tokenUsage ?? undefined,
+						estimatedContext,
+						...(percentOf1M !== undefined && { percentOf1M }),
+						...(modelId !== undefined && { modelId }),
+						status: iterStatus,
+						duration: Date.now() - startTime
 					});
 				}
 

@@ -830,7 +830,7 @@ describe('LoopService', () => {
 				return child;
 			}
 
-			it('test 1 — prompt text reaches appendFile without ANSI escape sequences', async () => {
+			it('test 1 — sibling iter file contains prompt text without ANSI escape sequences', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({ type: 'result', result: 'done' })
@@ -845,17 +845,16 @@ describe('LoopService', () => {
 					traceLevel: 'trace'
 				});
 
-				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
-				const traceCall = calls.find(
-					([, c]) =>
-						typeof c === 'string' &&
-						(c as string).includes('## [VERBOSE] Iteration')
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.iter-')
 				);
-				expect(traceCall).toBeDefined();
-				expect(traceCall![1] as string).not.toMatch(/\x1b\[[0-9;]*m/);
+				expect(iterCall).toBeDefined();
+				expect(iterCall![1] as string).toContain('## [VERBOSE] Iteration');
+				expect(iterCall![1] as string).not.toMatch(/\x1b\[[0-9;]*m/);
 			});
 
-			it('test 2 — tool input JSON reaches appendFile pretty-printed and capped at 10 KB', async () => {
+			it('test 2 — tool input JSON in sibling iter file is pretty-printed and capped at 10 KB', async () => {
 				const bigInput = { data: 'x'.repeat(15_000) };
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
@@ -883,15 +882,19 @@ describe('LoopService', () => {
 					traceLevel: 'trace'
 				});
 
-				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
-				const traceCall = calls.find(
-					([, c]) => typeof c === 'string' && (c as string).includes('```json')
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p, c]) =>
+						typeof p === 'string' &&
+						(p as string).includes('.iter-') &&
+						typeof c === 'string' &&
+						(c as string).includes('```json')
 				);
-				expect(traceCall).toBeDefined();
-				expect(traceCall![1] as string).toContain('… [truncated,');
+				expect(iterCall).toBeDefined();
+				expect(iterCall![1] as string).toContain('… [truncated,');
 			});
 
-			it('test 3 — token-usage rows reach appendFile as specified markdown', async () => {
+			it('test 3 — token-usage rows in sibling iter file use specified markdown', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({
@@ -910,20 +913,21 @@ describe('LoopService', () => {
 					traceLevel: 'trace'
 				});
 
-				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
-				const traceCall = calls.find(
-					([, c]) =>
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p, c]) =>
+						typeof p === 'string' &&
+						(p as string).includes('.iter-') &&
 						typeof c === 'string' &&
-						(c as string).includes('Iteration') &&
 						(c as string).includes('summary')
 				);
-				expect(traceCall).toBeDefined();
-				expect(traceCall![1] as string).toContain('input: 1,234');
-				expect(traceCall![1] as string).toContain('output: 567');
-				expect(traceCall![1] as string).toContain('total: 1,801');
+				expect(iterCall).toBeDefined();
+				expect(iterCall![1] as string).toContain('input: 1,234');
+				expect(iterCall![1] as string).toContain('output: 567');
+				expect(iterCall![1] as string).toContain('total: 1,801');
 			});
 
-			it('test 4 — multiple tool_use blocks produce exactly one appendFile call with ## Iteration marker', async () => {
+			it('test 4 — multiple tool_use blocks produce exactly one sibling iter file with ## Iteration marker', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({
@@ -963,13 +967,12 @@ describe('LoopService', () => {
 				});
 
 				const iterCalls = vi
-					.mocked(fsPromises.appendFile)
+					.mocked(fsPromises.writeFile)
 					.mock.calls.filter(
-						([, c]) =>
-							typeof c === 'string' &&
-							(c as string).includes('## [VERBOSE] Iteration 1')
+						([p]) => typeof p === 'string' && (p as string).includes('.iter-')
 					);
 				expect(iterCalls).toHaveLength(1);
+				expect(iterCalls[0][1] as string).toContain('## [VERBOSE] Iteration 1');
 			});
 
 			it('test 5 — truncation marker appears when payload exceeds 10 KB', () => {
@@ -982,7 +985,7 @@ describe('LoopService', () => {
 				expect(result.startsWith('a'.repeat(10_000))).toBe(true);
 			});
 
-			it('tags verbose-minimum lines with [VERBOSE] in the progress file', async () => {
+			it('tags verbose-minimum lines with [VERBOSE] in the sibling iter file', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({ type: 'result', result: 'done' })
@@ -997,10 +1000,9 @@ describe('LoopService', () => {
 					traceLevel: 'verbose'
 				});
 
-				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
-				const iterCall = calls.find(
-					([, c]) =>
-						typeof c === 'string' && (c as string).includes('[VERBOSE]')
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.iter-')
 				);
 				expect(iterCall).toBeDefined();
 				const content = iterCall![1] as string;
@@ -1051,11 +1053,9 @@ describe('LoopService', () => {
 					traceLevel: 'trace'
 				});
 
-				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
-				const iterCall = calls.find(
-					([, c]) =>
-						typeof c === 'string' &&
-						(c as string).includes('## [VERBOSE] Iteration')
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.iter-')
 				);
 				expect(iterCall).toBeDefined();
 				const content = iterCall![1] as string;
@@ -1094,10 +1094,9 @@ describe('LoopService', () => {
 					traceLevel: 'verbose'
 				});
 
-				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
-				const iterCall = calls.find(
-					([, c]) =>
-						typeof c === 'string' && (c as string).includes('[VERBOSE]')
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.iter-')
 				);
 				expect(iterCall).toBeDefined();
 				const content = iterCall![1] as string;
@@ -1105,6 +1104,273 @@ describe('LoopService', () => {
 				expect(content).toMatch(/\[VERBOSE\] - Tokens:/);
 				expect(content).toMatch(/\[VERBOSE\]   - input:/);
 				expect(content).toMatch(/\[VERBOSE\]   - output:/);
+			});
+		});
+
+		describe('per-iteration file routing', () => {
+			function makeMockSpawnChild(
+				stdoutLines: string[] = [],
+				exitCode: number | null = 0
+			) {
+				const child = new EventEmitter();
+				const stdout = new EventEmitter();
+				const stderr = new EventEmitter();
+
+				Object.assign(child, {
+					stdout,
+					stderr,
+					killed: false,
+					kill: vi.fn(),
+					pid: 99999
+				});
+
+				setImmediate(() => {
+					for (const line of stdoutLines) {
+						stdout.emit('data', Buffer.from(line + '\n', 'utf-8'));
+					}
+					stdout.emit('end');
+					child.emit('close', exitCode);
+				});
+
+				return child;
+			}
+
+			it('classifies task-master, write, and non-write tool calls correctly', () => {
+				const svc = service as unknown as {
+					classifyToolCalls: (counts: Map<string, number>) => {
+						totalToolCalls: number;
+						taskMasterToolCalls: number;
+						writeToolCalls: number;
+						nonWriteToolCalls: number;
+					};
+				};
+				const counts = new Map([
+					['mcp__task-master-ai__next_task', 5],
+					['Edit', 2],
+					['Write', 1],
+					['Bash', 3]
+				]);
+				const result = svc.classifyToolCalls(counts);
+				expect(result.totalToolCalls).toBe(11);
+				expect(result.taskMasterToolCalls).toBe(5);
+				expect(result.writeToolCalls).toBe(3); // Edit(2) + Write(1)
+				expect(result.nonWriteToolCalls).toBe(8); // 11 - 3
+			});
+
+			it('pads iteration numbers to width of totalIterations', () => {
+				const svc = service as unknown as {
+					iterationFilePath: (f: string, n: number, total: number) => string;
+				};
+				const norm = (p: string) => p.replace(/\\/g, '/');
+				// 10 iterations → width 2 → iter-01 through iter-10
+				expect(norm(svc.iterationFilePath('/p/progress.txt', 1, 10))).toBe(
+					'/p/progress.iter-01.txt'
+				);
+				expect(norm(svc.iterationFilePath('/p/progress.txt', 10, 10))).toBe(
+					'/p/progress.iter-10.txt'
+				);
+				// 100 iterations → width 3 → iter-001 etc.
+				expect(norm(svc.iterationFilePath('/p/progress.txt', 1, 100))).toBe(
+					'/p/progress.iter-001.txt'
+				);
+				// Single iteration → no padding
+				expect(norm(svc.iterationFilePath('/p/progress.txt', 1, 1))).toBe(
+					'/p/progress.iter-1.txt'
+				);
+			});
+
+			it('derives totals path correctly from progressFile', () => {
+				const svc = service as unknown as {
+					totalsFilePath: (f: string) => string;
+				};
+				const norm = (p: string) => p.replace(/\\/g, '/');
+				expect(norm(svc.totalsFilePath('/p/progress.txt'))).toBe(
+					'/p/progress.totals.txt'
+				);
+				expect(norm(svc.totalsFilePath('/foo/loop-progress.txt'))).toBe(
+					'/foo/loop-progress.totals.txt'
+				);
+			});
+
+			it('appends only a compact line to progress.txt after each verbose iteration', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'verbose'
+				});
+
+				// appendFile calls to the progress file should NOT contain '## Iteration' blocks
+				const appendCalls = vi
+					.mocked(fsPromises.appendFile)
+					.mock.calls.filter(([p]) => p === '/test/progress.txt');
+				for (const [, c] of appendCalls) {
+					expect(c as string).not.toContain('## Iteration');
+					expect(c as string).not.toContain('## [VERBOSE] Iteration');
+				}
+				// Compact line should be present
+				const compactCall = appendCalls.find(
+					([, c]) =>
+						typeof c === 'string' && (c as string).includes('- Iter 1:')
+				);
+				expect(compactCall).toBeDefined();
+				expect(compactCall![1] as string).toContain('tools:');
+			});
+
+			it('writes full verbose block to iter sibling file via writeFile', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'verbose'
+				});
+
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.iter-')
+				);
+				expect(iterCall).toBeDefined();
+				expect(iterCall![0] as string).toContain('progress.iter-1.txt');
+				expect(iterCall![1] as string).toContain('## [VERBOSE] Iteration 1');
+			});
+
+			it('writes totals file at finalize with per-iteration markdown table', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'verbose'
+				});
+
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const totalsCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.totals.')
+				);
+				expect(totalsCall).toBeDefined();
+				expect(totalsCall![0] as string).toContain('progress.totals.txt');
+				expect(totalsCall![1] as string).toContain('# Loop Totals');
+				expect(totalsCall![1] as string).toContain('| Iter |');
+			});
+
+			it('includes classification counts in onIterationSummary at trace level', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'assistant',
+							message: {
+								content: [
+									{
+										type: 'tool_use',
+										name: 'mcp__task-master-ai__next_task',
+										input: {}
+									},
+									{ type: 'tool_use', name: 'Edit', input: {} }
+								]
+							}
+						}),
+						JSON.stringify({ type: 'result', result: 'done' })
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				const onIterationSummary = vi.fn();
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'trace',
+					callbacks: { onIterationSummary }
+				});
+
+				expect(onIterationSummary).toHaveBeenCalledTimes(1);
+				const [, summary] = onIterationSummary.mock.calls[0];
+				expect(summary.totalToolCalls).toBe(2);
+				expect(summary.taskMasterToolCalls).toBe(1);
+				expect(summary.writeToolCalls).toBe(1);
+				expect(summary.nonWriteToolCalls).toBe(1);
+				expect(typeof summary.estimatedContext).toBe('number');
+			});
+
+			it('includes percentOf1M when system event reports an opus model id', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'system',
+							model: 'claude-opus-4-7-20251101'
+						}),
+						JSON.stringify({
+							type: 'result',
+							result: 'done',
+							usage: { input_tokens: 100_000, output_tokens: 5_000 }
+						})
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'verbose'
+				});
+
+				const appendCalls = vi.mocked(fsPromises.appendFile).mock.calls;
+				const compactCall = appendCalls.find(
+					([, c]) =>
+						typeof c === 'string' && (c as string).includes('- Iter 1:')
+				);
+				expect(compactCall).toBeDefined();
+				expect(compactCall![1] as string).toContain('% of 1M');
+			});
+
+			it('does not write sibling or totals files in none traceLevel mode', async () => {
+				vi.mocked(childProcess.spawnSync).mockReturnValue({
+					stdout: 'done',
+					stderr: '',
+					status: 0,
+					signal: null,
+					pid: 123,
+					output: []
+				});
+
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt'
+					// traceLevel defaults to 'none'
+				});
+
+				const writeCalls = vi.mocked(fsPromises.writeFile).mock.calls;
+				const iterCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.iter-')
+				);
+				const totalsCall = writeCalls.find(
+					([p]) => typeof p === 'string' && (p as string).includes('.totals.')
+				);
+				expect(iterCall).toBeUndefined();
+				expect(totalsCall).toBeUndefined();
 			});
 		});
 
