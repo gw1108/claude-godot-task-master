@@ -9,6 +9,7 @@
  * @param text - Raw text which may contain JSON
  * @returns A valid JSON string if extraction succeeds, otherwise the original text
  */
+import JSON5 from 'json5';
 import { type ParseError, parse } from 'jsonc-parser';
 
 export function extractJson(text: string): string {
@@ -44,7 +45,9 @@ export function extractJson(text: string): string {
 				: Math.min(firstObj, firstArr);
 	content = content.slice(start);
 
-	// Try to parse the entire string with jsonc-parser
+	// Try to parse the value, first as JSONC (strict-ish JSON with comments and
+	// trailing commas), then as JSON5 (unquoted keys, single-quoted strings)
+	// for AI output that returns JavaScript object literals.
 	const tryParse = (value: string): string | undefined => {
 		const errors: ParseError[] = [];
 		try {
@@ -52,6 +55,12 @@ export function extractJson(text: string): string {
 			if (errors.length === 0) {
 				return JSON.stringify(result, null, 2);
 			}
+		} catch {
+			// ignore
+		}
+		try {
+			const result = JSON5.parse(value);
+			return JSON.stringify(result, null, 2);
 		} catch {
 			// ignore
 		}
