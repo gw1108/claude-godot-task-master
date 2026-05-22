@@ -28,10 +28,6 @@ exports[`Preset Snapshots > duplication preset matches snapshot 1`] = `
 
 Find duplicated code and refactor into shared utilities. ONE refactor per session.
 
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (clones refactored, duplication %)
-
 ## Process
 
 1. Run duplication detection (\`npx jscpd .\`, or similar tool)
@@ -61,10 +57,6 @@ exports[`Preset Snapshots > entropy preset matches snapshot 1`] = `
 "# Taskmaster Loop - Entropy (Code Smells)
 
 Find code smells and clean them up. ONE cleanup per session.
-
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (smells fixed, areas cleaned)
 
 ## Code Smells to Target
 
@@ -104,10 +96,6 @@ exports[`Preset Snapshots > linting preset matches snapshot 1`] = `
 
 Fix lint errors and type errors one by one. ONE fix per session.
 
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (errors fixed, remaining count)
-
 ## Process
 
 1. Run lint command (\`pnpm lint\`, \`npm run lint\`, \`eslint .\`, etc.)
@@ -137,10 +125,6 @@ exports[`Preset Snapshots > test-coverage preset matches snapshot 1`] = `
 "# Taskmaster Loop - Test Coverage
 
 Find uncovered code and write meaningful tests. ONE test per session.
-
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (coverage %, what was tested)
 
 ## What Makes a Great Test
 

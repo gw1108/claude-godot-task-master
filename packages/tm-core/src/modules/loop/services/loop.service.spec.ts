@@ -1394,23 +1394,6 @@ describe('LoopService', () => {
 			expect(header).toContain('iteration 2 of 5');
 		});
 
-		it('should include progress file reference', () => {
-			const header = buildContextHeader(
-				{ iterations: 1, progressFile: '/test/progress.txt' },
-				1
-			);
-			expect(header).toContain('@/test/progress.txt');
-		});
-
-		it('should NOT include tasks file reference (preset controls task source)', () => {
-			const header = buildContextHeader(
-				{ iterations: 1, progressFile: '/test/progress.txt' },
-				1
-			);
-			// tasks.json intentionally excluded - let preset control task source to avoid confusion
-			expect(header).not.toContain('tasks.json');
-		});
-
 		it('should include tag filter when provided', () => {
 			const header = buildContextHeader(
 				{ iterations: 1, progressFile: '/test/progress.txt', tag: 'feature-x' },

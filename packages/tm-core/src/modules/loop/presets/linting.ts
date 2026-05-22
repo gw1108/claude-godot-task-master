@@ -7,10 +7,6 @@ const LINTING_PRESET_TEXT = `# Taskmaster Loop - Linting
 
 Fix lint errors and type errors one by one. ONE fix per session.
 
-## Files Available
-
-- @.taskmaster/loop-progress.txt - Progress log (errors fixed, remaining count)
-
 ## Process
 
 1. Run lint command (\`pnpm lint\`, \`npm run lint\`, \`eslint .\`, etc.)

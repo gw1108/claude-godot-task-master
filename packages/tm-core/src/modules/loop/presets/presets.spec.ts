@@ -197,16 +197,6 @@ describe('Preset Structure Validation', () => {
 			expect(content).toMatch(/<loop-complete>/);
 		});
 
-		it.each(PRESET_NAMES.filter((p) => p !== 'default'))(
-			'%s contains @ file reference pattern',
-			(preset) => {
-				const content = getPreset(preset)(TEST_CTX);
-				// Check for @ file reference pattern (e.g., @.taskmaster/ or @./)
-				// Note: default preset uses context header injection instead
-				expect(content).toMatch(/@\.taskmaster\/|@\.\//);
-			}
-		);
-
 		it.each(PRESET_NAMES)('%s contains numbered process steps', (preset) => {
 			const content = getPreset(preset)(TEST_CTX);
 			// Check for numbered steps (e.g., "1. ", "2. ")
@@ -268,12 +258,6 @@ describe('Preset Content Consistency', () => {
 		}
 	);
 
-	it.each(PRESET_NAMES)('%s has progress file reference', (preset) => {
-		const content = getPreset(preset)(TEST_CTX);
-		// All presets should reference the progress file
-		expect(content).toMatch(/loop-progress|progress/i);
-	});
-
 	it('specialized presets have markdown headers', () => {
 		// Default preset uses plain text sections (TASK:, PROCESS:, IMPORTANT:)
 		// Other presets use markdown headers
@@ -289,15 +273,6 @@ describe('Preset Content Consistency', () => {
 			const content = getPreset(preset)(TEST_CTX);
 			// Check for Process header (markdown ## or plain text PROCESS:)
 			expect(content).toMatch(/## Process|^PROCESS:/m);
-		}
-	});
-
-	it('specialized presets have files available section', () => {
-		// Default preset doesn't have files available section - context is injected at runtime
-		for (const preset of PRESET_NAMES.filter((p) => p !== 'default')) {
-			const content = getPreset(preset)(TEST_CTX);
-			// Check for Files Available header
-			expect(content).toMatch(/## Files Available/);
 		}
 	});
 });
