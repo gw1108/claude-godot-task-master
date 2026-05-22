@@ -9,8 +9,6 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"test": "vitest run",
-		"test:watch": "vitest",
 		"lint": "biome check --write",
 		"lint:check": "biome check",
 		"typecheck": "tsc --noEmit"
@@ -24,8 +22,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.5",
-		"typescript": "^5.9.2",
-		"vitest": "^4.0.10"
+		"typescript": "^5.9.2"
 	},
 	"files": ["src", "README.md"],
 	"keywords": ["temporary", "bridge", "migration"],
