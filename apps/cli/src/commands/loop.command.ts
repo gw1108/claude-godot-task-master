@@ -142,7 +142,7 @@ export class LoopCommand extends Command {
 				verbose: effectiveVerbose,
 				trace,
 				brief: briefName,
-				callbacks: this.createOutputCallbacks(effectiveVerbose, trace)
+				callbacks: this.createOutputCallbacks()
 			};
 
 			const result = await this.tmCore.loop.run(config);
@@ -189,20 +189,11 @@ export class LoopCommand extends Command {
 		}
 	}
 
-	private createOutputCallbacks(
-		verbose: boolean,
-		trace = false
-	): LoopOutputCallbacks {
+	private createOutputCallbacks(): LoopOutputCallbacks {
 		const callbacks: LoopOutputCallbacks = {
 			onIterationStart: (iteration: number, total: number) => {
 				console.log();
 				console.log(chalk.cyan(`━━━ Iteration ${iteration} of ${total} ━━━`));
-			},
-			onText: (text: string) => {
-				console.log(text);
-			},
-			onToolUse: (toolName: string) => {
-				console.log(chalk.dim(`  → ${toolName}`));
 			},
 			onError: (message: string, severity?: 'warning' | 'error') => {
 				if (severity === 'warning') {
@@ -232,117 +223,7 @@ export class LoopCommand extends Command {
 			}
 		};
 
-		// Loop-level timestamps are noise for routine runs; only render them
-		// when the user opts into deeper visibility via --verbose or --trace.
-		if (verbose) {
-			callbacks.onLoopStart = (startedAt: Date) => {
-				console.log(chalk.dim(`[Loop Start] ${startedAt.toISOString()}`));
-			};
-			callbacks.onLoopEnd = (finishedAt: Date, totalDuration: number) => {
-				console.log(
-					chalk.dim(
-						`[Loop End] ${finishedAt.toISOString()} (${this.formatDuration(totalDuration)})`
-					)
-				);
-			};
-		}
-
-		if (trace) {
-			callbacks.onPromptSent = (iteration: number, prompt: string) => {
-				console.log();
-				console.log(
-					chalk.magenta(`[trace] LLM input (iteration ${iteration}):`)
-				);
-				console.log(chalk.dim(prompt));
-				console.log();
-			};
-			callbacks.onToolInput = (toolName: string, input: unknown) => {
-				console.log(
-					chalk.magenta(`[trace] ${toolName} input:`),
-					chalk.dim(this.formatTraceValue(input))
-				);
-			};
-			callbacks.onToolResult = (
-				toolName: string | undefined,
-				result: unknown
-			) => {
-				const label = toolName ? `${toolName} result` : 'tool result';
-				console.log(
-					chalk.magenta(`[trace] ${label}:`),
-					chalk.dim(this.formatTraceValue(result))
-				);
-			};
-			callbacks.onIterationSummary = (
-				iteration: number,
-				summary: {
-					toolCalls: Array<{ name: string; count: number }>;
-					finalResult?: string;
-					tokenUsage?: {
-						inputTokens: number;
-						outputTokens: number;
-						cacheCreationInputTokens?: number;
-						cacheReadInputTokens?: number;
-						totalTokens: number;
-					};
-				}
-			) => {
-				console.log();
-				console.log(
-					chalk.magenta(`[trace] Iteration ${iteration} tool-call summary:`)
-				);
-				if (summary.toolCalls.length === 0) {
-					console.log(chalk.dim('  (no tool calls)'));
-				} else {
-					for (const tc of summary.toolCalls) {
-						console.log(chalk.dim(`  ${tc.name}: ${tc.count}`));
-					}
-				}
-				if (summary.tokenUsage) {
-					const u = summary.tokenUsage;
-					console.log(
-						chalk.magenta(`[trace] Iteration ${iteration} token usage:`)
-					);
-					console.log(chalk.dim(`  input: ${u.inputTokens.toLocaleString()}`));
-					console.log(
-						chalk.dim(`  output: ${u.outputTokens.toLocaleString()}`)
-					);
-					if (u.cacheCreationInputTokens !== undefined) {
-						console.log(
-							chalk.dim(
-								`  cache write: ${u.cacheCreationInputTokens.toLocaleString()}`
-							)
-						);
-					}
-					if (u.cacheReadInputTokens !== undefined) {
-						console.log(
-							chalk.dim(
-								`  cache read: ${u.cacheReadInputTokens.toLocaleString()}`
-							)
-						);
-					}
-					console.log(chalk.dim(`  total: ${u.totalTokens.toLocaleString()}`));
-				}
-				if (summary.finalResult) {
-					console.log(chalk.magenta(`[trace] LLM final output:`));
-					console.log(chalk.dim(summary.finalResult));
-				}
-			};
-		}
-
 		return callbacks;
-	}
-
-	private formatTraceValue(value: unknown): string {
-		if (value === undefined || value === null) return String(value);
-		if (typeof value === 'string') {
-			return value.length > 500 ? `${value.slice(0, 500)}…` : value;
-		}
-		try {
-			const json = JSON.stringify(value, null, 2);
-			return json.length > 1000 ? `${json.slice(0, 1000)}…` : json;
-		} catch {
-			return String(value);
-		}
 	}
 
 	private displayResult(result: LoopResult): void {

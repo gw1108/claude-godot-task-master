@@ -311,34 +311,20 @@ describe('LoopCommand', () => {
 	});
 
 	describe('createOutputCallbacks', () => {
-		it('should NOT attach loop timestamp callbacks when verbose is false', () => {
+		it('should not register verbose-only or trace callbacks (they write to file, not console)', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(false);
+			const callbacks = createCallbacks();
 
 			expect(callbacks.onLoopStart).toBeUndefined();
 			expect(callbacks.onLoopEnd).toBeUndefined();
-		});
-
-		it('should attach loop timestamp callbacks when verbose is true', () => {
-			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
-				loopCommand
-			);
-			const callbacks = createCallbacks(true);
-
-			expect(typeof callbacks.onLoopStart).toBe('function');
-			expect(typeof callbacks.onLoopEnd).toBe('function');
-
-			callbacks.onLoopStart!(new Date('2026-05-18T10:00:00.000Z'), 3);
-			callbacks.onLoopEnd!(new Date('2026-05-18T10:05:30.000Z'), 330_000);
-
-			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
-			expect(allOutput).toContain('[Loop Start]');
-			expect(allOutput).toContain('2026-05-18T10:00:00.000Z');
-			expect(allOutput).toContain('[Loop End]');
-			expect(allOutput).toContain('2026-05-18T10:05:30.000Z');
-			expect(allOutput).toContain('5m 30s');
+			expect(callbacks.onText).toBeUndefined();
+			expect(callbacks.onToolUse).toBeUndefined();
+			expect(callbacks.onPromptSent).toBeUndefined();
+			expect(callbacks.onToolInput).toBeUndefined();
+			expect(callbacks.onToolResult).toBeUndefined();
+			expect(callbacks.onIterationSummary).toBeUndefined();
 		});
 	});
 
@@ -614,124 +600,6 @@ describe('LoopCommand', () => {
 					verbose: true
 				})
 			);
-		});
-	});
-
-	describe('trace callbacks', () => {
-		it('should not register trace callbacks when trace is false', () => {
-			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
-				loopCommand
-			);
-			const callbacks = createCallbacks(false, false);
-
-			expect(callbacks.onPromptSent).toBeUndefined();
-			expect(callbacks.onToolInput).toBeUndefined();
-			expect(callbacks.onToolResult).toBeUndefined();
-			expect(callbacks.onIterationSummary).toBeUndefined();
-		});
-
-		it('should register trace callbacks when trace is true', () => {
-			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
-				loopCommand
-			);
-			const callbacks = createCallbacks(true, true);
-
-			expect(typeof callbacks.onPromptSent).toBe('function');
-			expect(typeof callbacks.onToolInput).toBe('function');
-			expect(typeof callbacks.onToolResult).toBe('function');
-			expect(typeof callbacks.onIterationSummary).toBe('function');
-		});
-
-		it('should print the LLM prompt via onPromptSent', () => {
-			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
-				loopCommand
-			);
-			const callbacks = createCallbacks(true, true);
-
-			callbacks.onPromptSent(2, 'hello LLM');
-
-			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
-			expect(allOutput).toContain('LLM input');
-			expect(allOutput).toContain('iteration 2');
-			expect(allOutput).toContain('hello LLM');
-		});
-
-		it('should print a tool-call summary at iteration end', () => {
-			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
-				loopCommand
-			);
-			const callbacks = createCallbacks(true, true);
-
-			callbacks.onIterationSummary(1, {
-				toolCalls: [
-					{ name: 'Bash', count: 3 },
-					{ name: 'Edit', count: 1 }
-				],
-				finalResult: 'done'
-			});
-
-			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
-			expect(allOutput).toContain('tool-call summary');
-			expect(allOutput).toContain('Bash');
-			expect(allOutput).toContain('3');
-			expect(allOutput).toContain('Edit');
-			expect(allOutput).toContain('done');
-		});
-
-		it('should print token usage when included in the summary', () => {
-			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
-				loopCommand
-			);
-			const callbacks = createCallbacks(true, true);
-
-			callbacks.onIterationSummary(2, {
-				toolCalls: [],
-				tokenUsage: {
-					inputTokens: 1234,
-					outputTokens: 567,
-					cacheCreationInputTokens: 890,
-					cacheReadInputTokens: 12345,
-					totalTokens: 15036
-				}
-			});
-
-			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
-			expect(allOutput).toContain('token usage');
-			expect(allOutput).toContain('1,234');
-			expect(allOutput).toContain('567');
-			expect(allOutput).toContain('890');
-			expect(allOutput).toContain('12,345');
-			expect(allOutput).toContain('15,036');
-		});
-
-		it('should omit cache rows when cache fields are absent', () => {
-			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
-				loopCommand
-			);
-			const callbacks = createCallbacks(true, true);
-
-			callbacks.onIterationSummary(3, {
-				toolCalls: [],
-				tokenUsage: {
-					inputTokens: 100,
-					outputTokens: 50,
-					totalTokens: 150
-				}
-			});
-
-			const allOutput = consoleLogSpy.mock.calls.flat().join(' ');
-			expect(allOutput).toContain('token usage');
-			expect(allOutput).not.toContain('cache write');
-			expect(allOutput).not.toContain('cache read');
-		});
-
-		it('should truncate large tool inputs', () => {
-			const formatTraceValue = (loopCommand as any).formatTraceValue.bind(
-				loopCommand
-			);
-			const large = { data: 'x'.repeat(2000) };
-			const formatted = formatTraceValue(large);
-			expect(formatted.endsWith('…')).toBe(true);
 		});
 	});
 });

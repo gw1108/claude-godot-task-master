@@ -188,21 +188,26 @@ Apply standard software engineering principles:
 - **Readable**: Clear naming, proper structure, export from index files
 - **Flexible**: Accept configuration options with sensible defaults
 
-## Documentation Guidelines
-
-- **Documentation location**: Write docs in `apps/docs/` (Mintlify site source), not `docs/`
-- **Documentation URL**: Reference docs at <https://tryhamster.com/docs/taskmaster>, not local file paths
-
 ## Changeset Guidelines
 
-- **Add a changeset for code changes** - Run `npx changeset` after making code changes (not needed for docs-only PRs)
-- When creating changesets, remember that it's user-facing, meaning we don't have to get into the specifics of the code, but rather mention what the end-user is getting or fixing from this changeset
 - Run `npm run turbo:typecheck` before pushing to ensure TypeScript type checks pass
 - Run `npm run test -w <package-name>` to test a package
 
-## Commiting to Github
-- Don't commit directly unless you are on a feature branch:
-git checkout -b feature/my-change
-git push -u origin feature/my-change
-gh pr create --base main
-gh pr merge --auto --squash
+## Code Intelligence
+
+Prefer LSP over Grep/Glob/Read for code navigation:
+- `goToDefinition` / `goToImplementation` to jump to source
+- `findReferences` to see all usages across the codebase
+- `workspaceSymbol` to find where something is defined
+- `documentSymbol` to list all symbols in a file
+- `hover` for type info without reading the file
+- `incomingCalls` / `outgoingCalls` for call hierarchy
+
+Before renaming or changing a function signature, use
+`findReferences` to find all call sites first.
+
+Use Grep/Glob only for text/pattern searches (comments,
+strings, config values) where LSP doesn't help.
+
+After writing or editing code, check LSP diagnostics before
+moving on. Fix any type errors or missing imports immediately.

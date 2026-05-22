@@ -647,15 +647,18 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		// Track tool-call counts for the trace-mode iteration summary
 		const toolCallCounts = new Map<string, number>();
 
-		// Per-iteration trace buffer (only allocated when trace + progressFile)
-		const traceLines: string[] | undefined =
-			trace && progressFile ? [] : undefined;
+		// Per-iteration file buffer (allocated when verbose or trace + progressFile)
+		const iterationFileLines: string[] | undefined = progressFile
+			? []
+			: undefined;
 
-		if (traceLines) {
-			traceLines.push(`## Iteration ${iterationNum}`);
-			traceLines.push(
-				`### LLM input\n\`\`\`text\n${this.truncateForFile(prompt)}\n\`\`\``
-			);
+		if (iterationFileLines) {
+			iterationFileLines.push(`## Iteration ${iterationNum}`);
+			if (trace) {
+				iterationFileLines.push(
+					`### LLM input\n\`\`\`text\n${this.truncateForFile(prompt)}\n\`\`\``
+				);
+			}
 		}
 
 		return new Promise((resolve, reject) => {
@@ -700,17 +703,15 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 						callbacks,
 						trace,
 						toolCallCounts,
-						traceLines
+						iterationFileLines
 					);
 
 					// Capture final result and token-usage snapshot from the result event
 					if (event.type === 'result') {
 						finalResult = typeof event.result === 'string' ? event.result : '';
-						if (trace) {
-							const usage = this.extractTokenUsage(event);
-							if (usage) {
-								tokenUsage = usage;
-							}
+						const usage = this.extractTokenUsage(event);
+						if (usage) {
+							tokenUsage = usage;
 						}
 					}
 				} catch (error) {
@@ -814,24 +815,24 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					});
 				}
 
-				// Flush per-iteration trace buffer to progress file
-				if (traceLines && progressFile) {
+				// Flush per-iteration file buffer to progress file
+				if (iterationFileLines) {
 					const toolCalls = Array.from(toolCallCounts.entries())
 						.map(([name, count]) => ({ name, count }))
 						.sort((a, b) => b.count - a.count);
 
-					traceLines.push(
+					iterationFileLines.push(
 						this.buildIterationSummaryBlock(iterationNum, {
 							toolCalls,
 							finalResult: finalResult || undefined,
 							...(tokenUsage && { tokenUsage })
 						})
 					);
-					traceLines.push('---');
+					iterationFileLines.push('---');
 
 					appendFile(
-						progressFile,
-						'\n' + traceLines.join('\n\n') + '\n',
+						progressFile!,
+						'\n' + iterationFileLines.join('\n\n') + '\n',
 						'utf-8'
 					).catch((err: unknown) => {
 						rejectOnce(err);
@@ -968,7 +969,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 		callbacks?: LoopOutputCallbacks,
 		trace = false,
 		toolCallCounts?: Map<string, number>,
-		traceLines?: string[]
+		iterationFileLines?: string[]
 	): void {
 		if (!event.message?.content) return;
 
@@ -978,14 +979,14 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 					callbacks?.onText?.(block.text);
 				} else if (block.type === 'tool_use' && block.name) {
 					callbacks?.onToolUse?.(block.name);
+					toolCallCounts?.set(
+						block.name,
+						(toolCallCounts.get(block.name) ?? 0) + 1
+					);
 					if (trace) {
-						toolCallCounts?.set(
-							block.name,
-							(toolCallCounts.get(block.name) ?? 0) + 1
-						);
 						if (block.input !== undefined) {
 							callbacks?.onToolInput?.(block.name, block.input);
-							traceLines?.push(
+							iterationFileLines?.push(
 								`### Tool: ${block.name} input\n` +
 									this.formatJsonBlockForFile(block.input)
 							);
@@ -1002,7 +1003,7 @@ Loop iteration ${iteration} of ${config.iterations}${tagInfo}`;
 				if (block.type === 'tool_result') {
 					callbacks?.onToolResult?.(block.name, block.content);
 					const label = block.name ?? 'unknown';
-					traceLines?.push(
+					iterationFileLines?.push(
 						`### Tool: ${label} result\n` +
 							this.formatJsonBlockForFile(block.content)
 					);
