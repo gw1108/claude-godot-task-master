@@ -15,7 +15,8 @@ import {
 	type LoopPreset,
 	type LoopConfig,
 	type LoopIteration,
-	type LoopResult
+	type LoopResult,
+	type LoopTraceLevel
 } from '../../../src/index.js';
 import type { ConfigManager } from '../../../src/modules/config/managers/config-manager.js';
 
@@ -68,6 +69,11 @@ describe('Loop Exports from @tm/core', () => {
 			expect(config.prompt).toBe('default');
 			expect(config.sleepSeconds).toBe(5);
 			expect(config.progressFile).toBe('/path/to/progress.txt');
+		});
+
+		it('should export LoopTraceLevel type (compile-time verification)', () => {
+			const levels: LoopTraceLevel[] = ['none', 'verbose', 'trace'];
+			expect(levels).toHaveLength(3);
 		});
 
 		it('should export LoopConfig type with optional fields', () => {

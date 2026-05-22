@@ -170,6 +170,21 @@ describe('LoopCommand', () => {
 			const option = loopCommand.options.find((o) => o.long === '--project');
 			expect(option).toBeDefined();
 		});
+
+		it('session-persistence defaults to false', () => {
+			const option = loopCommand.options.find(
+				(o) => o.long === '--session-persistence'
+			);
+			expect(option?.defaultValue).toBe(false);
+		});
+
+		it('rejects invalid --session-persistence value', () => {
+			// Commander calls process.exit(1) on InvalidArgumentError; our spy throws instead
+			expect(() =>
+				loopCommand.parseOptions(['--session-persistence', 'yes'])
+			).toThrow();
+			expect(processExitSpy).toHaveBeenCalledWith(1);
+		});
 	});
 
 	describe('validateIterations', () => {
@@ -311,21 +326,21 @@ describe('LoopCommand', () => {
 	});
 
 	describe('createOutputCallbacks', () => {
-		it('should NOT attach loop timestamp callbacks when verbose is false', () => {
+		it('should NOT attach loop timestamp callbacks when tracelevel is none', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(false);
+			const callbacks = createCallbacks('none');
 
 			expect(callbacks.onLoopStart).toBeUndefined();
 			expect(callbacks.onLoopEnd).toBeUndefined();
 		});
 
-		it('should attach loop timestamp callbacks when verbose is true', () => {
+		it('should attach loop timestamp callbacks when tracelevel is verbose', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true);
+			const callbacks = createCallbacks('verbose');
 
 			expect(typeof callbacks.onLoopStart).toBe('function');
 			expect(typeof callbacks.onLoopEnd).toBe('function');
@@ -570,23 +585,21 @@ describe('LoopCommand', () => {
 			expect(allOutput).toContain('Test Task');
 		});
 
-		it('should pass trace flag through to loop config', async () => {
+		it('should pass tracelevel trace through to loop config', async () => {
 			const result = createMockResult();
 			mockLoopRun.mockResolvedValue(result);
 
 			const execute = (loopCommand as any).execute.bind(loopCommand);
-			await execute({ trace: true });
+			await execute({ tracelevel: 'trace' });
 
 			expect(mockLoopRun).toHaveBeenCalledWith(
 				expect.objectContaining({
-					trace: true,
-					// trace implies verbose streaming
-					verbose: true
+					traceLevel: 'trace'
 				})
 			);
 		});
 
-		it('should not enable trace by default', async () => {
+		it('should default tracelevel to none', async () => {
 			const result = createMockResult();
 			mockLoopRun.mockResolvedValue(result);
 
@@ -595,34 +608,68 @@ describe('LoopCommand', () => {
 
 			expect(mockLoopRun).toHaveBeenCalledWith(
 				expect.objectContaining({
-					trace: false,
-					verbose: false
+					traceLevel: 'none'
 				})
 			);
 		});
 
-		it('should preserve plain --verbose without enabling trace', async () => {
+		it('should pass tracelevel verbose through to loop config', async () => {
 			const result = createMockResult();
 			mockLoopRun.mockResolvedValue(result);
 
 			const execute = (loopCommand as any).execute.bind(loopCommand);
-			await execute({ verbose: true });
+			await execute({ tracelevel: 'verbose' });
 
 			expect(mockLoopRun).toHaveBeenCalledWith(
 				expect.objectContaining({
-					trace: false,
-					verbose: true
+					traceLevel: 'verbose'
 				})
+			);
+		});
+
+		it('passes sessionPersistence true to LoopConfig when option is true', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({ sessionPersistence: true });
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({ sessionPersistence: true })
+			);
+		});
+
+		it('passes sessionPersistence false to LoopConfig when option is false', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({ sessionPersistence: false });
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({ sessionPersistence: false })
+			);
+		});
+
+		it('defaults sessionPersistence to false when option is not provided', async () => {
+			const result = createMockResult();
+			mockLoopRun.mockResolvedValue(result);
+
+			const execute = (loopCommand as any).execute.bind(loopCommand);
+			await execute({});
+
+			expect(mockLoopRun).toHaveBeenCalledWith(
+				expect.objectContaining({ sessionPersistence: false })
 			);
 		});
 	});
 
 	describe('trace callbacks', () => {
-		it('should not register trace callbacks when trace is false', () => {
+		it('should not register trace callbacks when tracelevel is none', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(false, false);
+			const callbacks = createCallbacks('none');
 
 			expect(callbacks.onPromptSent).toBeUndefined();
 			expect(callbacks.onToolInput).toBeUndefined();
@@ -630,11 +677,11 @@ describe('LoopCommand', () => {
 			expect(callbacks.onIterationSummary).toBeUndefined();
 		});
 
-		it('should register trace callbacks when trace is true', () => {
+		it('should register trace callbacks when tracelevel is trace', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true, true);
+			const callbacks = createCallbacks('trace');
 
 			expect(typeof callbacks.onPromptSent).toBe('function');
 			expect(typeof callbacks.onToolInput).toBe('function');
@@ -646,7 +693,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true, true);
+			const callbacks = createCallbacks('trace');
 
 			callbacks.onPromptSent(2, 'hello LLM');
 
@@ -660,7 +707,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true, true);
+			const callbacks = createCallbacks('trace');
 
 			callbacks.onIterationSummary(1, {
 				toolCalls: [
@@ -682,7 +729,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true, true);
+			const callbacks = createCallbacks('trace');
 
 			callbacks.onIterationSummary(2, {
 				toolCalls: [],
@@ -708,7 +755,7 @@ describe('LoopCommand', () => {
 			const createCallbacks = (loopCommand as any).createOutputCallbacks.bind(
 				loopCommand
 			);
-			const callbacks = createCallbacks(true, true);
+			const callbacks = createCallbacks('trace');
 
 			callbacks.onIterationSummary(3, {
 				toolCalls: [],

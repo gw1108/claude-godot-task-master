@@ -167,9 +167,24 @@ describe('loop command', () => {
 			expect(exitCode).toBe(0);
 			expect(output).toContain('--project');
 		});
+
+		it('should show --session-persistence option in help', () => {
+			const { output, exitCode } = runHelp();
+
+			expect(exitCode).toBe(0);
+			expect(output).toContain('--session-persistence');
+		});
 	});
 
 	describe('validation errors', () => {
+		it('exits with code 1 when --session-persistence is given an invalid value', () => {
+			const { output, exitCode } = runLoop('--session-persistence yes');
+
+			expect(exitCode).toBe(1);
+			expect(output.toLowerCase()).toContain('invalid');
+			expect(output.toLowerCase()).toContain('session-persistence');
+		});
+
 		it('should reject invalid iterations (non-numeric)', () => {
 			const { output, exitCode } = runLoop('-n abc');
 

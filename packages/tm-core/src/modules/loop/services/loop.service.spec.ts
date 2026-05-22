@@ -372,7 +372,7 @@ describe('LoopService', () => {
 					iterations: 1,
 					sleepSeconds: 0,
 					progressFile: '/test/progress.txt',
-					verbose: true,
+					traceLevel: 'verbose',
 					sandbox: true,
 					callbacks: { onLoopStart, onLoopEnd }
 				});
@@ -640,11 +640,11 @@ describe('LoopService', () => {
 					sleepSeconds: 0,
 					progressFile: '/test/progress.txt',
 					sandbox: true,
-					trace: true
+					traceLevel: 'trace'
 				});
 
 				expect(result.finalStatus).toBe('error');
-				expect(result.errorMessage).toContain('--trace');
+				expect(result.errorMessage).toContain('--tracelevel trace');
 				// No child process should be spawned when validation fails
 				expect(mockSpawnSync).not.toHaveBeenCalled();
 			});
@@ -656,11 +656,11 @@ describe('LoopService', () => {
 					sleepSeconds: 0,
 					progressFile: '/test/progress.txt',
 					sandbox: true,
-					verbose: true
+					traceLevel: 'verbose'
 				});
 
 				expect(result.finalStatus).toBe('error');
-				expect(result.errorMessage).toContain('--verbose');
+				expect(result.errorMessage).toContain('--tracelevel verbose');
 				expect(mockSpawnSync).not.toHaveBeenCalled();
 			});
 
@@ -676,7 +676,7 @@ describe('LoopService', () => {
 						handleStreamEvent: (
 							event: unknown,
 							callbacks: unknown,
-							trace?: boolean,
+							level?: 'none' | 'verbose' | 'trace',
 							counts?: Map<string, number>
 						) => void;
 					}
@@ -698,7 +698,7 @@ describe('LoopService', () => {
 						}
 					},
 					{ onText, onToolUse, onToolInput, onToolResult },
-					true,
+					'trace',
 					toolCallCounts
 				);
 
@@ -711,7 +711,7 @@ describe('LoopService', () => {
 						}
 					},
 					{ onText, onToolUse, onToolInput, onToolResult },
-					true,
+					'trace',
 					toolCallCounts
 				);
 
@@ -733,7 +733,7 @@ describe('LoopService', () => {
 						handleStreamEvent: (
 							event: unknown,
 							callbacks: unknown,
-							trace?: boolean,
+							level?: 'none' | 'verbose' | 'trace',
 							counts?: Map<string, number>
 						) => void;
 					}
@@ -753,7 +753,7 @@ describe('LoopService', () => {
 						}
 					},
 					{ onText, onToolUse, onToolInput, onToolResult },
-					false
+					'none'
 				);
 
 				handleStreamEvent(
@@ -764,7 +764,7 @@ describe('LoopService', () => {
 						}
 					},
 					{ onText, onToolUse, onToolInput, onToolResult },
-					false
+					'none'
 				);
 
 				expect(onToolUse).toHaveBeenCalledWith('Bash');
@@ -867,7 +867,7 @@ describe('LoopService', () => {
 					iterations: 1,
 					sleepSeconds: 0,
 					progressFile: '/test/progress.txt',
-					trace: true
+					traceLevel: 'trace'
 				});
 
 				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
@@ -904,7 +904,7 @@ describe('LoopService', () => {
 					iterations: 1,
 					sleepSeconds: 0,
 					progressFile: '/test/progress.txt',
-					trace: true
+					traceLevel: 'trace'
 				});
 
 				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
@@ -931,7 +931,7 @@ describe('LoopService', () => {
 					iterations: 1,
 					sleepSeconds: 0,
 					progressFile: '/test/progress.txt',
-					trace: true
+					traceLevel: 'trace'
 				});
 
 				const calls = vi.mocked(fsPromises.appendFile).mock.calls;
@@ -983,7 +983,7 @@ describe('LoopService', () => {
 					iterations: 1,
 					sleepSeconds: 0,
 					progressFile: '/test/progress.txt',
-					trace: true
+					traceLevel: 'trace'
 				});
 
 				const iterCalls = vi
@@ -1323,6 +1323,112 @@ describe('LoopService', () => {
 				1
 			);
 			expect(header).not.toContain('tag:');
+		});
+	});
+
+	describe('sessionPersistence in buildCommandArgs', () => {
+		let service: LoopService;
+		const minimalConfig = {
+			prompt: 'linting',
+			iterations: 1,
+			sleepSeconds: 0,
+			progressFile: '/test/progress.txt'
+		};
+
+		beforeEach(() => {
+			service = new LoopService(defaultOptions);
+		});
+
+		it('appends --no-session-persistence when sessionPersistence is false (non-sandbox)', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				sandbox: false,
+				sessionPersistence: false
+			});
+
+			const claudeCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'claude'
+			);
+			expect(claudeCalls.length).toBeGreaterThan(0);
+			expect(claudeCalls[0][1]).toContain('--no-session-persistence');
+		});
+
+		it('does NOT append --no-session-persistence when sessionPersistence is true (non-sandbox)', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				sandbox: false,
+				sessionPersistence: true
+			});
+
+			const claudeCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'claude'
+			);
+			expect(claudeCalls.length).toBeGreaterThan(0);
+			expect(claudeCalls[0][1]).not.toContain('--no-session-persistence');
+		});
+
+		it('appends --no-session-persistence when sessionPersistence is false (sandbox)', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				sandbox: true,
+				sessionPersistence: false
+			});
+
+			const dockerCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'docker'
+			);
+			expect(dockerCalls.length).toBeGreaterThan(0);
+			expect(dockerCalls[0][1]).toContain('--no-session-persistence');
+		});
+
+		it('does NOT append --no-session-persistence when sessionPersistence is true (sandbox)', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				sandbox: true,
+				sessionPersistence: true
+			});
+
+			const dockerCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'docker'
+			);
+			expect(dockerCalls.length).toBeGreaterThan(0);
+			expect(dockerCalls[0][1]).not.toContain('--no-session-persistence');
 		});
 	});
 
