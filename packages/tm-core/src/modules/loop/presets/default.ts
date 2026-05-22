@@ -1,24 +1,27 @@
+import type { PresetCtx } from '../types.js';
+
 /**
- * Default preset for Taskmaster loop - general task completion
- * Matches the structure of scripts/loop.sh prompt
+ * Default preset for Taskmaster loop — general task completion.
  *
- * Note: The task-master CLI availability is verified once before the loop
- * starts (see LoopService.checkTaskMasterAvailable). Setup instructions are
- * intentionally not embedded in the prompt to avoid spending tokens on a
- * precondition the LLM cannot act on mid-iteration.
+ * Dispatch strategy: every task-master call names the exact MCP tool
+ * (mcp__task-master-ai__<tool>) and the full parameter object so the host
+ * can route directly without a ToolSearch round-trip. The task-master-ai MCP
+ * server presence is verified once before the loop starts via
+ * LoopService.checkMcpServerAvailable (see loop.service.ts).
  */
-export const DEFAULT_PRESET = `TASK: Implement ONE task/subtask from the Taskmaster backlog.
+export const DEFAULT_PRESET = (ctx: PresetCtx): string =>
+	`TASK: Implement ONE task/subtask from the Taskmaster backlog.
 
 PROCESS:
-1. Run task-master next (or use MCP) to get the next available task/subtask.
-2. Read task details with task-master show <id>.
+1. Call mcp__task-master-ai__next_task with { "projectRoot": "${ctx.projectRoot}" } to get the next available task/subtask.
+2. Call mcp__task-master-ai__get_task with { "id": "<task id>", "projectRoot": "${ctx.projectRoot}" } to read full task details.
 3. Implement following codebase patterns.
 4. Write tests alongside implementation.
 5. Run type check (e.g., \`npm run typecheck\`, \`tsc --noEmit\`).
 6. Run tests (e.g., \`npm test\`, \`npm run test\`).
-7. Mark complete: task-master set-status --id=<id> --status=done
+7. Call mcp__task-master-ai__set_task_status with { "id": "<task id>", "status": "done", "projectRoot": "${ctx.projectRoot}" } to mark complete.
 8. Commit with message: feat(<scope>): <what was implemented>
-9. Append super-concise notes to progress file: task ID, what was done. If there was any mistakes or false assumptions, append them into a learning.
+9. Append super-concise notes to progress file: task ID, what was done. If there were any mistakes or false assumptions, append them as learnings.
 
 IMPORTANT:
 - Complete ONLY ONE task per iteration.

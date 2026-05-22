@@ -12,6 +12,9 @@ export type LoopPreset =
 	| 'duplication'
 	| 'entropy';
 
+/** Context passed to preset factory functions so projectRoot is injected at call time */
+export type PresetCtx = { projectRoot: string };
+
 /**
  * Per-iteration summary of tool-call activity (emitted at iteration end in trace mode).
  */

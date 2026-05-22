@@ -91,7 +91,8 @@ describe('LoopDomain Integration', () => {
 		it('should match preset content with getPreset utility', async () => {
 			for (const preset of PRESET_NAMES) {
 				const fromDomain = await domain.resolvePrompt(preset);
-				const fromUtility = getPreset(preset);
+				// Call getPreset with the same projectRoot the domain was configured with
+				const fromUtility = getPreset(preset)({ projectRoot: '/test/project' });
 				expect(fromDomain).toBe(fromUtility);
 			}
 		});

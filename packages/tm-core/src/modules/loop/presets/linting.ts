@@ -1,7 +1,9 @@
+import type { PresetCtx } from '../types.js';
+
 /**
  * Linting preset for Taskmaster loop - fix lint and type errors
  */
-export const LINTING_PRESET = `# Taskmaster Loop - Linting
+const LINTING_PRESET_TEXT = `# Taskmaster Loop - Linting
 
 Fix lint errors and type errors one by one. ONE fix per session.
 
@@ -32,3 +34,5 @@ Fix lint errors and type errors one by one. ONE fix per session.
 
 - If zero lint errors and zero type errors, output: <loop-complete>ZERO_ERRORS</loop-complete>
 `;
+
+export const LINTING_PRESET = (_ctx: PresetCtx): string => LINTING_PRESET_TEXT;

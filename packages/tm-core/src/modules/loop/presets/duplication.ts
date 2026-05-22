@@ -1,7 +1,9 @@
+import type { PresetCtx } from '../types.js';
+
 /**
  * Duplication preset for Taskmaster loop - code deduplication
  */
-export const DUPLICATION_PRESET = `# Taskmaster Loop - Duplication
+const DUPLICATION_PRESET_TEXT = `# Taskmaster Loop - Duplication
 
 Find duplicated code and refactor into shared utilities. ONE refactor per session.
 
@@ -32,3 +34,6 @@ Find duplicated code and refactor into shared utilities. ONE refactor per sessio
 
 - If duplication below threshold (e.g., <3%), output: <loop-complete>LOW_DUPLICATION</loop-complete>
 `;
+
+export const DUPLICATION_PRESET = (_ctx: PresetCtx): string =>
+	DUPLICATION_PRESET_TEXT;

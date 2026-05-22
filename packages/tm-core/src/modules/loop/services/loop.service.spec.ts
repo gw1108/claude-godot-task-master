@@ -14,11 +14,13 @@ import {
 } from 'vitest';
 import { LoopService, type LoopServiceOptions } from './loop.service.js';
 import * as childProcess from 'node:child_process';
+import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import { EventEmitter } from 'node:events';
 
-// Mock child_process and fs/promises
+// Mock child_process, node:fs, and fs/promises
 vi.mock('node:child_process');
+vi.mock('node:fs');
 vi.mock('node:fs/promises');
 
 describe('LoopService', () => {
@@ -30,10 +32,16 @@ describe('LoopService', () => {
 
 	beforeEach(() => {
 		vi.resetAllMocks();
-		// Default fs mocks
+		// Default fs/promises mocks
 		vi.mocked(fsPromises.mkdir).mockResolvedValue(undefined);
 		vi.mocked(fsPromises.writeFile).mockResolvedValue(undefined);
 		vi.mocked(fsPromises.appendFile).mockResolvedValue(undefined);
+
+		// Default node:fs mocks — MCP config is present and contains task-master-ai
+		vi.mocked(fs.existsSync).mockReturnValue(true);
+		vi.mocked(fs.readFileSync).mockReturnValue(
+			JSON.stringify({ mcpServers: { 'task-master-ai': { command: 'npx' } } })
+		);
 
 		// Default spawnSync mock
 		mockSpawnSync = vi.mocked(childProcess.spawnSync);
@@ -180,66 +188,43 @@ describe('LoopService', () => {
 		});
 	});
 
-	describe('checkTaskMasterAvailable()', () => {
-		it('should return available=true when task-master --version succeeds', () => {
-			mockSpawnSync.mockReturnValue({
-				stdout: '0.27.3',
-				stderr: '',
-				status: 0,
-				signal: null,
-				pid: 123,
-				output: []
-			});
-
-			const service = new LoopService(defaultOptions);
-			const result = service.checkTaskMasterAvailable();
-
-			expect(result.available).toBe(true);
-			expect(mockSpawnSync).toHaveBeenCalledWith(
-				'task-master',
-				['--version'],
-				expect.objectContaining({
-					cwd: '/test/project'
-				})
+	describe('checkMcpServerAvailable()', () => {
+		it('returns available=true when .mcp.json contains the server alias', () => {
+			vi.mocked(fs.existsSync).mockReturnValue(true);
+			vi.mocked(fs.readFileSync).mockReturnValue(
+				JSON.stringify({ mcpServers: { 'task-master-ai': { command: 'npx' } } })
 			);
+			const service = new LoopService(defaultOptions);
+			const result = service.checkMcpServerAvailable('task-master-ai');
+			expect(result.available).toBe(true);
 		});
 
-		it('should return available=false with install hint on ENOENT', () => {
-			const enoent = Object.assign(new Error('not found'), {
-				code: 'ENOENT'
-			}) as NodeJS.ErrnoException;
-			mockSpawnSync.mockReturnValue({
-				stdout: '',
-				stderr: '',
-				status: null,
-				signal: null,
-				pid: 0,
-				output: [],
-				error: enoent
-			});
-
+		it('returns available=false when .mcp.json does not exist', () => {
+			vi.mocked(fs.existsSync).mockReturnValue(false);
 			const service = new LoopService(defaultOptions);
-			const result = service.checkTaskMasterAvailable();
-
+			const result = service.checkMcpServerAvailable('task-master-ai');
 			expect(result.available).toBe(false);
-			expect(result.error).toContain('npm i -g task-master-ai');
+			expect(result.error).toContain('.mcp.json');
 		});
 
-		it('should return available=false when exit code is non-zero', () => {
-			mockSpawnSync.mockReturnValue({
-				stdout: '',
-				stderr: 'broken install',
-				status: 1,
-				signal: null,
-				pid: 123,
-				output: []
-			});
-
+		it('returns available=false when server alias is missing from mcpServers', () => {
+			vi.mocked(fs.existsSync).mockReturnValue(true);
+			vi.mocked(fs.readFileSync).mockReturnValue(
+				JSON.stringify({ mcpServers: { 'other-server': {} } })
+			);
 			const service = new LoopService(defaultOptions);
-			const result = service.checkTaskMasterAvailable();
-
+			const result = service.checkMcpServerAvailable('task-master-ai');
 			expect(result.available).toBe(false);
-			expect(result.error).toMatch(/exit(ed)? with code 1/i);
+			expect(result.error).toContain('"task-master-ai"');
+		});
+
+		it('returns available=false when .mcp.json is invalid JSON', () => {
+			vi.mocked(fs.existsSync).mockReturnValue(true);
+			vi.mocked(fs.readFileSync).mockReturnValue('not-json');
+			const service = new LoopService(defaultOptions);
+			const result = service.checkMcpServerAvailable('task-master-ai');
+			expect(result.available).toBe(false);
+			expect(result.error).toMatch(/Failed to read/);
 		});
 	});
 
@@ -408,8 +393,8 @@ describe('LoopService', () => {
 
 				expect(result.totalIterations).toBe(3);
 				expect(result.tasksCompleted).toBe(3);
-				// 1 task-master --version precondition + 3 claude iterations
-				expect(mockSpawnSync).toHaveBeenCalledTimes(4);
+				// 3 claude iterations (MCP check uses node:fs, no spawnSync call)
+				expect(mockSpawnSync).toHaveBeenCalledTimes(3);
 			});
 
 			it('should call spawnSync with claude -p by default (non-sandbox)', async () => {
@@ -439,20 +424,9 @@ describe('LoopService', () => {
 			});
 		});
 
-		describe('task-master precondition', () => {
-			it('should fail fast for default preset when task-master is missing', async () => {
-				const enoent = Object.assign(new Error('not found'), {
-					code: 'ENOENT'
-				}) as NodeJS.ErrnoException;
-				mockSpawnSync.mockReturnValue({
-					stdout: '',
-					stderr: '',
-					status: null,
-					signal: null,
-					pid: 0,
-					output: [],
-					error: enoent
-				});
+		describe('mcp precondition', () => {
+			it('should fail fast for default preset when .mcp.json is missing', async () => {
+				vi.mocked(fs.existsSync).mockReturnValue(false);
 
 				const result = await service.run({
 					prompt: 'default',
@@ -463,17 +437,36 @@ describe('LoopService', () => {
 
 				expect(result.finalStatus).toBe('error');
 				expect(result.totalIterations).toBe(0);
-				expect(result.errorMessage).toContain('npm i -g task-master-ai');
-				// Only the precondition spawn ran - no iterations spawned
-				expect(mockSpawnSync).toHaveBeenCalledTimes(1);
-				expect(mockSpawnSync).toHaveBeenCalledWith(
-					'task-master',
-					['--version'],
+				expect(result.errorMessage).toContain('.mcp.json');
+				// No iterations spawned when precondition fails
+				expect(mockSpawnSync).not.toHaveBeenCalledWith(
+					'claude',
+					expect.any(Array),
 					expect.any(Object)
 				);
 			});
 
+			it('should fail fast for default preset when task-master-ai is not in mcpServers', async () => {
+				vi.mocked(fs.existsSync).mockReturnValue(true);
+				vi.mocked(fs.readFileSync).mockReturnValue(
+					JSON.stringify({ mcpServers: { 'other-server': {} } })
+				);
+
+				const result = await service.run({
+					prompt: 'default',
+					iterations: 5,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt'
+				});
+
+				expect(result.finalStatus).toBe('error');
+				expect(result.totalIterations).toBe(0);
+				expect(result.errorMessage).toContain('"task-master-ai"');
+			});
+
 			it('should skip precondition for non-default presets', async () => {
+				// Override to unavailable — proves precondition is not checked for non-default presets
+				vi.mocked(fs.existsSync).mockReturnValue(false);
 				mockSpawnSync.mockReturnValue({
 					stdout: 'Done',
 					stderr: '',
@@ -490,7 +483,7 @@ describe('LoopService', () => {
 					progressFile: '/test/progress.txt'
 				});
 
-				// No precondition call - only the single claude iteration
+				// Only the single claude iteration — no task-master or MCP spawnSync calls
 				expect(mockSpawnSync).toHaveBeenCalledTimes(1);
 				expect(mockSpawnSync).not.toHaveBeenCalledWith(
 					'task-master',
@@ -500,6 +493,8 @@ describe('LoopService', () => {
 			});
 
 			it('should skip precondition in sandbox mode', async () => {
+				// Override to unavailable — proves precondition is not checked in sandbox mode
+				vi.mocked(fs.existsSync).mockReturnValue(false);
 				mockSpawnSync.mockReturnValue({
 					stdout: 'Done',
 					stderr: '',
@@ -571,25 +566,14 @@ describe('LoopService', () => {
 
 		describe('error handling', () => {
 			it('should handle non-zero exit code', async () => {
-				// First call is the task-master precondition (must succeed),
-				// subsequent calls are the iteration (the error we're testing).
-				mockSpawnSync
-					.mockReturnValueOnce({
-						stdout: '0.27.3',
-						stderr: '',
-						status: 0,
-						signal: null,
-						pid: 123,
-						output: []
-					})
-					.mockReturnValue({
-						stdout: '',
-						stderr: 'Error occurred',
-						status: 1,
-						signal: null,
-						pid: 123,
-						output: []
-					});
+				mockSpawnSync.mockReturnValue({
+					stdout: '',
+					stderr: 'Error occurred',
+					status: 1,
+					signal: null,
+					pid: 123,
+					output: []
+				});
 
 				const result = await service.run({
 					prompt: 'default',
@@ -603,23 +587,14 @@ describe('LoopService', () => {
 			});
 
 			it('should handle null status as error', async () => {
-				mockSpawnSync
-					.mockReturnValueOnce({
-						stdout: '0.27.3',
-						stderr: '',
-						status: 0,
-						signal: null,
-						pid: 123,
-						output: []
-					})
-					.mockReturnValue({
-						stdout: '',
-						stderr: '',
-						status: null,
-						signal: 'SIGTERM',
-						pid: 123,
-						output: []
-					});
+				mockSpawnSync.mockReturnValue({
+					stdout: '',
+					stderr: '',
+					status: null,
+					signal: 'SIGTERM',
+					pid: 123,
+					output: []
+				});
 
 				const result = await service.run({
 					prompt: 'default',

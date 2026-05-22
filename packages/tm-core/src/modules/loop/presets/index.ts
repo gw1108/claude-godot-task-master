@@ -8,12 +8,12 @@ import { TEST_COVERAGE_PRESET } from './test-coverage.js';
 import { LINTING_PRESET } from './linting.js';
 import { DUPLICATION_PRESET } from './duplication.js';
 import { ENTROPY_PRESET } from './entropy.js';
-import type { LoopPreset } from '../types.js';
+import type { LoopPreset, PresetCtx } from '../types.js';
 
 /**
- * Record of all preset names to their content
+ * Record of all preset names to their factory functions
  */
-export const PRESETS: Record<LoopPreset, string> = {
+export const PRESETS: Record<LoopPreset, (ctx: PresetCtx) => string> = {
 	default: DEFAULT_PRESET,
 	'test-coverage': TEST_COVERAGE_PRESET,
 	linting: LINTING_PRESET,
@@ -27,11 +27,11 @@ export const PRESETS: Record<LoopPreset, string> = {
 export const PRESET_NAMES = Object.keys(PRESETS) as LoopPreset[];
 
 /**
- * Get the content of a preset by name
+ * Get the factory function for a preset by name
  * @param name - The preset name
- * @returns The preset content string
+ * @returns The preset factory function
  */
-export function getPreset(name: LoopPreset): string {
+export function getPreset(name: LoopPreset): (ctx: PresetCtx) => string {
 	return PRESETS[name];
 }
 

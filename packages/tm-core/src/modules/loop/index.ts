@@ -13,6 +13,7 @@ export type { LoopServiceOptions } from './services/loop.service.js';
 // Types
 export type {
 	LoopPreset,
+	PresetCtx,
 	LoopConfig,
 	LoopIteration,
 	LoopResult,

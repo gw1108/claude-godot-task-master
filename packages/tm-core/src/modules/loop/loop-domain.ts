@@ -115,7 +115,7 @@ export class LoopDomain {
 		readFile?: (path: string) => Promise<string>
 	): Promise<string> {
 		if (checkIsPreset(prompt)) {
-			return getPreset(prompt);
+			return getPreset(prompt)({ projectRoot: this.projectRoot });
 		}
 		if (!readFile) {
 			throw new Error(
