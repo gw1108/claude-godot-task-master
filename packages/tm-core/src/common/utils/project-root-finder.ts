@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {
 	OTHER_PROJECT_MARKERS,
@@ -18,6 +19,14 @@ function hasAnyMarker(dir: string, markers: readonly string[]): boolean {
 	return markers.some((marker) => markerExists(dir, marker));
 }
 
+function pathsEqual(a: string, b: string): boolean {
+	const normA = path.resolve(a);
+	const normB = path.resolve(b);
+	return process.platform === 'win32'
+		? normA.toLowerCase() === normB.toLowerCase()
+		: normA === normB;
+}
+
 /**
  * Find the project root by traversing upward from startDir looking for project markers.
  *
@@ -30,6 +39,7 @@ function hasAnyMarker(dir: string, markers: readonly string[]): boolean {
 export function findProjectRoot(startDir: string = process.cwd()): string {
 	let currentDir = path.resolve(startDir);
 	const rootDir = path.parse(currentDir).root;
+	const homeDir = path.resolve(os.homedir());
 	const maxDepth = 50;
 	let depth = 0;
 	let projectBoundaryDir: string | null = null;
@@ -47,6 +57,11 @@ export function findProjectRoot(startDir: string = process.cwd()): string {
 	depth = 1;
 
 	while (depth < maxDepth) {
+		// Never treat the user's home directory as a project root: $HOME commonly
+		// contains stray dotfiles (.taskmaster, .vscode, .github, .git) that would
+		// otherwise be mistaken for project markers.
+		if (pathsEqual(searchDir, homeDir)) break;
+
 		const hasTaskmaster = hasAnyMarker(searchDir, TASKMASTER_PROJECT_MARKERS);
 		const hasBoundary = hasAnyMarker(searchDir, PROJECT_BOUNDARY_MARKERS);
 
@@ -78,6 +93,8 @@ export function findProjectRoot(startDir: string = process.cwd()): string {
 	depth = 0;
 
 	while (depth < maxDepth) {
+		if (pathsEqual(currentDir, homeDir)) break;
+
 		if (hasAnyMarker(currentDir, OTHER_PROJECT_MARKERS)) {
 			return currentDir;
 		}
