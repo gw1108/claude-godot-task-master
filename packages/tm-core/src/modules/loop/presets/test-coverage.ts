@@ -1,7 +1,9 @@
+import type { PresetCtx } from '../types.js';
+
 /**
  * Test coverage preset for Taskmaster loop - writing meaningful tests
  */
-export const TEST_COVERAGE_PRESET = `# Taskmaster Loop - Test Coverage
+const TEST_COVERAGE_PRESET_TEXT = `# Taskmaster Loop - Test Coverage
 
 Find uncovered code and write meaningful tests. ONE test per session.
 
@@ -39,3 +41,6 @@ branches, internal plumbing), add ignore comments instead of low-value tests.
 
 - If coverage reaches target (or 100%), output: <loop-complete>COVERAGE_TARGET</loop-complete>
 `;
+
+export const TEST_COVERAGE_PRESET = (_ctx: PresetCtx): string =>
+	TEST_COVERAGE_PRESET_TEXT;

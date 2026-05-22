@@ -3,6 +3,7 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getLogger } from '../../../common/logger/index.js';
@@ -45,45 +46,40 @@ export class LoopService {
 	}
 
 	/**
-	 * Check if the task-master CLI is available on the host.
+	 * Verify that the named MCP server is wired up in the project's .mcp.json.
 	 *
-	 * The default preset's prompt instructs the LLM to invoke `task-master`
-	 * commands every iteration. Verifying availability once up front lets us
-	 * fail fast with a clear install instruction, instead of paying tokens
-	 * every iteration on a SETUP line the LLM cannot usefully act on.
+	 * Config-only check (sync file read, no IPC) — fast enough to run on every
+	 * loop start. A live tool ping was rejected as too heavy for a precondition.
 	 */
-	checkTaskMasterAvailable(): { available: boolean; error?: string } {
-		const result = spawnSync('task-master', ['--version'], {
-			cwd: this.projectRoot,
-			timeout: 10000,
-			encoding: 'utf-8',
-			stdio: ['ignore', 'pipe', 'pipe'],
-			shell: process.platform === 'win32'
-		});
-
-		if (result.error) {
-			const code = (result.error as NodeJS.ErrnoException).code;
-			if (code === 'ENOENT') {
+	checkMcpServerAvailable(serverAlias: string): {
+		available: boolean;
+		error?: string;
+	} {
+		const mcpConfigPath = path.join(this.projectRoot, '.mcp.json');
+		if (!existsSync(mcpConfigPath)) {
+			return {
+				available: false,
+				error: `MCP config not found at ${mcpConfigPath}. Add a .mcp.json with a "${serverAlias}" mcpServers entry.`
+			};
+		}
+		try {
+			const raw = readFileSync(mcpConfigPath, 'utf-8');
+			const config = JSON.parse(raw) as {
+				mcpServers?: Record<string, unknown>;
+			};
+			if (!config.mcpServers || !(serverAlias in config.mcpServers)) {
 				return {
 					available: false,
-					error:
-						'task-master CLI not found. Install with: npm i -g task-master-ai'
+					error: `MCP server "${serverAlias}" not found in ${mcpConfigPath}. Add it under mcpServers.`
 				};
 			}
+			return { available: true };
+		} catch (err) {
 			return {
 				available: false,
-				error: `Failed to check task-master: ${result.error.message}`
+				error: `Failed to read ${mcpConfigPath}: ${(err as Error).message}`
 			};
 		}
-
-		if (result.status !== 0) {
-			return {
-				available: false,
-				error: `task-master --version exited with code ${result.status}. Try reinstalling: npm i -g task-master-ai`
-			};
-		}
-
-		return { available: true };
 	}
 
 	/** Check if Docker sandbox auth is ready */
@@ -176,15 +172,15 @@ export class LoopService {
 			return this.buildErrorResult(loopStart, errorMsg, config.callbacks);
 		}
 
-		// The default preset's prompt drives task-master commands every iteration.
-		// Verify the CLI is on PATH once up front so we fail fast with install
-		// instructions instead of embedding setup guidance in every prompt.
-		// Skip in sandbox mode: the host check doesn't reflect what's inside
-		// the Docker container that actually runs Claude.
+		// The default preset routes all task-master calls through the MCP server.
+		// Verify it is configured in .mcp.json once up front — fail fast rather than
+		// discovering the gap during the first iteration.
+		// Skip in sandbox mode: the host .mcp.json doesn't govern the container.
 		if (config.prompt === 'default' && !config.sandbox) {
-			const tmCheck = this.checkTaskMasterAvailable();
-			if (!tmCheck.available) {
-				const errorMsg = tmCheck.error || 'task-master CLI not available';
+			const mcpCheck = this.checkMcpServerAvailable('task-master-ai');
+			if (!mcpCheck.available) {
+				const errorMsg =
+					mcpCheck.error || 'task-master-ai MCP server not configured';
 				this.reportError(config.callbacks, errorMsg);
 				return this.buildErrorResult(loopStart, errorMsg, config.callbacks);
 			}
@@ -495,7 +491,7 @@ export class LoopService {
 
 	private async resolvePrompt(prompt: string): Promise<string> {
 		if (this.isPreset(prompt)) {
-			return PRESETS[prompt];
+			return PRESETS[prompt]({ projectRoot: this.projectRoot });
 		}
 		const content = await readFile(prompt, 'utf-8');
 		if (!content.trim()) {

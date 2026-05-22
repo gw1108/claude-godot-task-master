@@ -1,8 +1,10 @@
+import type { PresetCtx } from '../types.js';
+
 /**
  * @fileoverview Entropy (Code Smells) preset for loop module
  */
 
-export const ENTROPY_PRESET = `# Taskmaster Loop - Entropy (Code Smells)
+const ENTROPY_PRESET_TEXT = `# Taskmaster Loop - Entropy (Code Smells)
 
 Find code smells and clean them up. ONE cleanup per session.
 
@@ -41,3 +43,5 @@ Find code smells and clean them up. ONE cleanup per session.
 
 - If no significant smells remain, output: <loop-complete>LOW_ENTROPY</loop-complete>
 `;
+
+export const ENTROPY_PRESET = (_ctx: PresetCtx): string => ENTROPY_PRESET_TEXT;
