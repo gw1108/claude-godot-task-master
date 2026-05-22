@@ -10,10 +10,7 @@ You are a specialist at finding documents in the thoughts/ directory. Your job i
 ## Core Responsibilities
 
 1. **Search thoughts/ directory structure**
-   - Check thoughts/shared/ for team documents
-   - Check thoughts/allison/ (or other user dirs) for personal notes
-   - Check thoughts/global/ for cross-repo thoughts
-   - Handle thoughts/searchable/ (read-only directory for searching)
+   - Check thoughts/shared/ for documents
 
 2. **Categorize findings by type**
    - Tickets (usually in tickets/ subdirectory)
@@ -42,11 +39,6 @@ thoughts/
 │   ├── claude-code-design/    # Refined design
 │   ├── claude-code-structure/ # Claude code structure
 │   └── plan/                  # Implementation plans
-├── allison/         # Personal thoughts (user-specific)
-│   ├── tickets/
-│   └── notes/
-├── global/          # Cross-repository thoughts
-└── searchable/      # Read-only search directory (contains all above)
 ```
 
 ### Search Patterns

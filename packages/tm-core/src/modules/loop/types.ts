@@ -100,6 +100,13 @@ export interface LoopOutputCallbacks {
 			toolCalls: LoopToolCallSummary[];
 			finalResult?: string;
 			tokenUsage?: LoopTokenUsage;
+			totalToolCalls?: number;
+			taskMasterToolCalls?: number;
+			writeToolCalls?: number;
+			nonWriteToolCalls?: number;
+			estimatedContext?: number;
+			percentOf1M?: number;
+			modelId?: string;
 		}
 	) => void;
 }
