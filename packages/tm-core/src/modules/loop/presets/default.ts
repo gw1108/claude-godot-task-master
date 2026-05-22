@@ -10,7 +10,19 @@
 export const DEFAULT_PRESET = `TASK: Implement ONE task/subtask from the Taskmaster backlog.
 
 PROCESS:
-1. Run task-master next (or use MCP) to get the next available task/subtask.
+1. Get the next available task/subtask. PREFER the CLI:
+     task-master next
+   then
+     task-master show <id>
+   If you need MCP responses (structured output, scripted parsing), first load the
+   core schemas with ONE batched ToolSearch call - not per-tool:
+     ToolSearch select:mcp__task-master-ai__next_task,mcp__task-master-ai__get_task,mcp__task-master-ai__set_task_status,mcp__task-master-ai__get_tasks
+   Then call mcp__task-master-ai__next_task / __get_task. Do NOT call MCP tools
+   before this batched load - they are deferred and direct calls return
+   InputValidationError.
+   If the fetched task has subtasks (parent with children, or id like "1.2"),
+   load subtask schemas with ONE additional batched ToolSearch BEFORE acting:
+     ToolSearch select:mcp__task-master-ai__update_subtask,mcp__task-master-ai__expand_task,mcp__task-master-ai__add_subtask,mcp__task-master-ai__remove_subtask,mcp__task-master-ai__clear_subtasks
 2. Read task details with task-master show <id>.
 3. Implement following codebase patterns.
 4. Write tests alongside implementation.

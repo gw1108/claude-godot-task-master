@@ -229,6 +229,29 @@ describe('Preset Structure Validation', () => {
 			expect(DEFAULT_PRESET).toMatch(/<loop-complete>.*<\/loop-complete>/);
 			expect(DEFAULT_PRESET).toMatch(/<loop-blocked>.*<\/loop-blocked>/);
 		});
+
+		it('prefers the CLI as the default path for task selection', () => {
+			expect(DEFAULT_PRESET).toContain('task-master next');
+			expect(DEFAULT_PRESET).toMatch(/PREFER the CLI/);
+		});
+
+		it('documents the batched ToolSearch fallback for core MCP tools', () => {
+			expect(DEFAULT_PRESET).toContain('ToolSearch');
+			expect(DEFAULT_PRESET).toContain(
+				'select:mcp__task-master-ai__next_task,mcp__task-master-ai__get_task,mcp__task-master-ai__set_task_status,mcp__task-master-ai__get_tasks'
+			);
+		});
+
+		it('warns that deferred MCP tools fail with InputValidationError before load', () => {
+			expect(DEFAULT_PRESET).toContain('InputValidationError');
+		});
+
+		it('documents conditional subtask schema loading', () => {
+			expect(DEFAULT_PRESET).toContain(
+				'select:mcp__task-master-ai__update_subtask,mcp__task-master-ai__expand_task,mcp__task-master-ai__add_subtask,mcp__task-master-ai__remove_subtask,mcp__task-master-ai__clear_subtasks'
+			);
+			expect(DEFAULT_PRESET).toMatch(/has subtasks/);
+		});
 	});
 });
 
