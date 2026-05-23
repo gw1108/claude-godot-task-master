@@ -3,6 +3,7 @@
  * Tests the OpenCode slash command profile formatting and metadata.
  */
 
+import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { OpenCodeProfile } from './opencode-profile.js';
 import { staticCommand, dynamicCommand } from '../factories.js';
@@ -328,7 +329,9 @@ Query: $ARGUMENTS
 			const commandsPath = profile.getCommandsPath(projectRoot);
 
 			// Assert
-			expect(commandsPath).toBe('/home/user/my-project/.opencode/command');
+			expect(commandsPath).toBe(
+				path.join('/home/user/my-project', '.opencode', 'command')
+			);
 		});
 
 		it('should handle project root with trailing slash', () => {
@@ -341,7 +344,9 @@ Query: $ARGUMENTS
 
 			// Assert
 			// path.join normalizes the path
-			expect(commandsPath).toBe('/home/user/my-project/.opencode/command');
+			expect(commandsPath).toBe(
+				path.join('/home/user/my-project', '.opencode', 'command')
+			);
 		});
 	});
 });

@@ -99,7 +99,8 @@ describe('MCP response tag honors explicit tag arg (issue #1683)', () => {
 			`${key}=${value}`
 		]);
 
-		const npxBin = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+		const isWindows = process.platform === 'win32';
+		const npxBin = isWindows ? 'npx.cmd' : 'npx';
 		const output = execFileSync(
 			npxBin,
 			[
@@ -113,7 +114,9 @@ describe('MCP response tag honors explicit tag arg (issue #1683)', () => {
 				toolName,
 				...toolArgs
 			],
-			{ encoding: 'utf-8', stdio: 'pipe' }
+			// shell:true is required on Windows to run .cmd shims since
+			// Node 18+ rejects them with EINVAL otherwise (CVE-2024-27980).
+			{ encoding: 'utf-8', stdio: 'pipe', shell: isWindows }
 		);
 		const mcpResponse = JSON.parse(output);
 		const resultText = mcpResponse.content[0].text;

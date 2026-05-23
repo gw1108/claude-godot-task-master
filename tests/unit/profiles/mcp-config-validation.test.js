@@ -339,7 +339,11 @@ describe('MCP Configuration Validation', () => {
 						profile.mcpConfigPath
 					);
 					expect(fullPath).toBe(normalizedExpectedPath);
-					expect(fullPath).toContain(profile.mcpConfigName);
+					// `mcpConfigName` may contain forward slashes (e.g.
+					// 'settings/mcp.json' for kiro); after path.join those become
+					// '\\' on Windows.  Normalize both sides for the contains check.
+					const toPosix = (p) => p.replace(/\\/g, '/');
+					expect(toPosix(fullPath)).toContain(profile.mcpConfigName);
 				}
 			});
 		});

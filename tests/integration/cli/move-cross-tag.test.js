@@ -529,9 +529,10 @@ describe('Cross-Tag Move CLI Integration', () => {
 			// fromTag is intentionally not provided to test fallback
 		});
 
-		// Verify that moveTasksBetweenTags was called with 'master' as source tag
+		// Verify that moveTasksBetweenTags was called with 'master' as source tag.
+		// Use path.join for the substring so Windows backslashes match.
 		expect(mockMoveTasksBetweenTags).toHaveBeenCalledWith(
-			expect.stringContaining('.taskmaster/tasks/tasks.json'),
+			expect.stringContaining(path.join('.taskmaster', 'tasks', 'tasks.json')),
 			[1], // parseInt converts string to number
 			'master', // Should use current tag as fallback
 			'in-progress',

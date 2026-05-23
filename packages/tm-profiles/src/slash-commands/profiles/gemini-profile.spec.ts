@@ -3,6 +3,7 @@
  * Tests the Gemini CLI slash command profile formatting and metadata.
  */
 
+import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { dynamicCommand, staticCommand } from '../factories.js';
 import { GeminiProfile } from './gemini-profile.js';
@@ -536,7 +537,9 @@ Query: $ARGUMENTS
 			const commandsPath = profile.getCommandsPath(projectRoot);
 
 			// Assert
-			expect(commandsPath).toBe('/home/user/my-project/.gemini/commands/tm');
+			expect(commandsPath).toBe(
+				path.join('/home/user/my-project', '.gemini', 'commands', 'tm')
+			);
 		});
 
 		it('should handle project root with trailing slash', () => {
@@ -549,7 +552,9 @@ Query: $ARGUMENTS
 
 			// Assert
 			// path.join normalizes the path
-			expect(commandsPath).toBe('/home/user/my-project/.gemini/commands/tm');
+			expect(commandsPath).toBe(
+				path.join('/home/user/my-project', '.gemini', 'commands', 'tm')
+			);
 		});
 
 		it('should handle Windows-style paths', () => {

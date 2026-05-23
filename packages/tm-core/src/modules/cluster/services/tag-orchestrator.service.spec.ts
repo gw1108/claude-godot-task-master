@@ -15,6 +15,7 @@ import { ParallelExecutorService } from './parallel-executor.service.js';
 import type { Task } from '../../../common/types/index.js';
 import type { ProgressEventData, TaskExecutionResult } from '../types.js';
 import { promises as fsMock } from 'fs';
+import path from 'node:path';
 import { TaskMasterError } from '../../../common/errors/task-master-error.js';
 
 vi.mock('../../../common/logger/factory.js', () => ({
@@ -302,8 +303,10 @@ describe('TagOrchestratorService', () => {
 				resumeFromCheckpoint: true
 			});
 
+			// readJSON resolves the path with path.resolve, which prepends the
+			// drive letter on Windows ("/tmp/..." -> "C:\\tmp\\...").
 			expect(fsMock.readFile).toHaveBeenCalledWith(
-				'/tmp/checkpoint.json',
+				path.resolve('/tmp/checkpoint.json'),
 				'utf-8'
 			);
 			expect(updateStatusSpy).toHaveBeenCalledWith(

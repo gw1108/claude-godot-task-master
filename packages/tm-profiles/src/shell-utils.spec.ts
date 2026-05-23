@@ -98,7 +98,11 @@ describe('shell-utils', () => {
 		it('should fallback to .zshrc if it exists when shell is unknown', () => {
 			// Arrange
 			const originalShell = process.env.SHELL;
+			const originalPSModulePath = process.env.PSModulePath;
+			const originalPlatform = process.platform;
 			process.env.SHELL = '/bin/unknown';
+			delete process.env.PSModulePath;
+			Object.defineProperty(process, 'platform', { value: 'linux' });
 			vi.mocked(fs.existsSync).mockImplementation((p) =>
 				String(p).includes('.zshrc')
 			);
@@ -111,12 +115,18 @@ describe('shell-utils', () => {
 
 			// Cleanup
 			process.env.SHELL = originalShell;
+			process.env.PSModulePath = originalPSModulePath;
+			Object.defineProperty(process, 'platform', { value: originalPlatform });
 		});
 
 		it('should return null if no shell config is found', () => {
 			// Arrange
 			const originalShell = process.env.SHELL;
+			const originalPSModulePath = process.env.PSModulePath;
+			const originalPlatform = process.platform;
 			process.env.SHELL = '/bin/unknown';
+			delete process.env.PSModulePath;
+			Object.defineProperty(process, 'platform', { value: 'linux' });
 			vi.mocked(fs.existsSync).mockReturnValue(false);
 
 			// Act
@@ -127,6 +137,8 @@ describe('shell-utils', () => {
 
 			// Cleanup
 			process.env.SHELL = originalShell;
+			process.env.PSModulePath = originalPSModulePath;
+			Object.defineProperty(process, 'platform', { value: originalPlatform });
 		});
 
 		it('should return PowerShell profile on Windows with PSModulePath', () => {
@@ -321,7 +333,11 @@ describe('shell-utils', () => {
 		it('should return failure if shell type cannot be determined', () => {
 			// Arrange
 			const originalShell = process.env.SHELL;
+			const originalPSModulePath = process.env.PSModulePath;
+			const originalPlatform = process.platform;
 			process.env.SHELL = '/bin/unknown';
+			delete process.env.PSModulePath;
+			Object.defineProperty(process, 'platform', { value: 'linux' });
 			vi.mocked(fs.existsSync).mockReturnValue(false);
 
 			// Act
@@ -333,6 +349,8 @@ describe('shell-utils', () => {
 
 			// Cleanup
 			process.env.SHELL = originalShell;
+			process.env.PSModulePath = originalPSModulePath;
+			Object.defineProperty(process, 'platform', { value: originalPlatform });
 		});
 
 		it('should use PowerShell syntax for .ps1 files', () => {

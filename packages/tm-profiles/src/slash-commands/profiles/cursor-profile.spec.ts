@@ -3,6 +3,7 @@
  * Tests the Cursor slash command profile formatting and metadata.
  */
 
+import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { CursorProfile } from './cursor-profile.js';
 import { staticCommand, dynamicCommand } from '../factories.js';
@@ -319,7 +320,9 @@ Query: $ARGUMENTS
 			const commandsPath = profile.getCommandsPath(projectRoot);
 
 			// Assert - Cursor supports nested commands, so path includes tm/ subdirectory
-			expect(commandsPath).toBe('/home/user/my-project/.cursor/commands/tm');
+			expect(commandsPath).toBe(
+				path.join('/home/user/my-project', '.cursor', 'commands', 'tm')
+			);
 		});
 
 		it('should handle project root with trailing slash', () => {
@@ -331,7 +334,9 @@ Query: $ARGUMENTS
 			const commandsPath = profile.getCommandsPath(projectRoot);
 
 			// Assert - path.join normalizes the path, includes tm/ subdirectory
-			expect(commandsPath).toBe('/home/user/my-project/.cursor/commands/tm');
+			expect(commandsPath).toBe(
+				path.join('/home/user/my-project', '.cursor', 'commands', 'tm')
+			);
 		});
 	});
 

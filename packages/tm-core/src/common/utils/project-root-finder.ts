@@ -15,8 +15,29 @@ function markerExists(dir: string, marker: string): boolean {
 	}
 }
 
+/**
+ * Check if any marker exists in `dir`. Reads the directory listing once
+ * and checks markers against that listing in memory — drastically faster
+ * than N separate `fs.existsSync` calls on Windows (where each syscall
+ * is intercepted by Defender), and short-circuits to false when the
+ * directory itself doesn't exist or can't be read.
+ *
+ * Nested markers (e.g. `helm/Chart.yaml`) are only checked with a full
+ * path lookup if their top-level segment appears in the listing.
+ */
 function hasAnyMarker(dir: string, markers: readonly string[]): boolean {
-	return markers.some((marker) => markerExists(dir, marker));
+	let entries: Set<string>;
+	try {
+		entries = new Set(fs.readdirSync(dir));
+	} catch {
+		return false;
+	}
+	return markers.some((marker) => {
+		const topLevel = marker.split(/[\\/]/)[0];
+		if (!entries.has(topLevel)) return false;
+		if (marker === topLevel) return true;
+		return markerExists(dir, marker);
+	});
 }
 
 function pathsEqual(a: string, b: string): boolean {
@@ -120,12 +141,20 @@ export function normalizeProjectRoot(
 ): string {
 	if (!projectRoot) return '';
 
-	const segments = String(projectRoot).split(path.sep);
+	const input = String(projectRoot);
+	// Detect which separator the input uses so we preserve the original style.
+	// On Windows path.sep is '\\', but inputs can still use '/'.
+	const usedSep = input.includes(path.sep)
+		? path.sep
+		: input.includes('/')
+			? '/'
+			: path.sep;
+	const segments = input.split(usedSep);
 	const taskmasterIndex = segments.findIndex((s) => s === '.taskmaster');
 
 	if (taskmasterIndex !== -1) {
-		return segments.slice(0, taskmasterIndex).join(path.sep) || path.sep;
+		return segments.slice(0, taskmasterIndex).join(usedSep) || usedSep;
 	}
 
-	return String(projectRoot);
+	return input;
 }

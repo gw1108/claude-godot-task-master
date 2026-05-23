@@ -207,7 +207,8 @@ describe('generate command', () => {
 		const { output, exitCode } = runGenerate();
 
 		expect(exitCode).toBe(0);
-		expect(output).toContain('.taskmaster/tasks');
+		// Windows uses backslashes; check both separator styles.
+		expect(output).toMatch(/\.taskmaster[\\/]tasks/);
 	});
 
 	it('should exit with non-zero code for invalid --format value', () => {

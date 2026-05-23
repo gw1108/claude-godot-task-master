@@ -120,7 +120,10 @@ describe('WorkflowStateManager', () => {
 
 			// Should be: ~/.taskmaster/{project-id}/sessions/
 			expect(sessionDir).toContain(path.join(homeDir, '.taskmaster'));
-			expect(sessionDir).toMatch(/\.taskmaster\/.*\/sessions$/);
+			const sepPattern = path.sep === '\\' ? '\\\\' : '/';
+			expect(sessionDir).toMatch(
+				new RegExp(`\\.taskmaster${sepPattern}.*${sepPattern}sessions$`)
+			);
 		});
 
 		it('should include workflow-state.json in session dir', () => {

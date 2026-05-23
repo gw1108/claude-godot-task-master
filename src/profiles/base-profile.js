@@ -93,8 +93,15 @@ export function createProfile(editorConfig) {
 		onPostConvert
 	} = editorConfig;
 
+	// Use POSIX-style forward slashes for the stored relative path so it is
+	// stable across platforms. setupMCPConfiguration calls path.join() to
+	// resolve it against projectRoot, which handles both separators on Windows.
+	// When profileDir is '.' (root-of-project profiles), omit it to match the
+	// normalization that path.join would have produced.
 	const mcpConfigPath = mcpConfigName
-		? path.join(profileDir, mcpConfigName)
+		? profileDir === '.'
+			? mcpConfigName
+			: `${profileDir}/${mcpConfigName}`
 		: null;
 
 	// Standard file mapping with custom overrides

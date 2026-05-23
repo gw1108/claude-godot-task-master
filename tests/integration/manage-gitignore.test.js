@@ -383,7 +383,12 @@ tasks/ `;
 	});
 
 	describe('Error Handling', () => {
-		test('should handle permission errors gracefully', () => {
+		// Windows does not enforce POSIX permission bits the same way Unix does
+		// — `fs.chmodSync(dir, 0o444)` does not actually prevent writes from the
+		// same user, so the create call succeeds and this test cannot trigger
+		// the failure path.  Skip on win32.
+		const itPosixOnly = process.platform === 'win32' ? test.skip : test;
+		itPosixOnly('should handle permission errors gracefully', () => {
 			// Create a directory where we would create the file, then remove write permissions
 			const readOnlyDir = path.join(tempDir, 'readonly');
 			fs.mkdirSync(readOnlyDir);
@@ -419,7 +424,7 @@ tasks/ `;
 			fs.chmodSync(readOnlyDir, 0o755);
 		});
 
-		test('should handle read errors on existing files', () => {
+		itPosixOnly('should handle read errors on existing files', () => {
 			// Create a file then remove read permissions
 			fs.writeFileSync(testGitignorePath, 'existing content');
 			fs.chmodSync(testGitignorePath, 0o000); // No permissions
