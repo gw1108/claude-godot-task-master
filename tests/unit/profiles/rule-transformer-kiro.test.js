@@ -1,4 +1,10 @@
 import { jest } from '@jest/globals';
+import path from 'node:path';
+
+// Convert a path string to POSIX-style separators so test assertions that
+// hard-code "/" continue to match on Windows where path.join emits "\".
+const toPosix = (p) =>
+	typeof p === 'string' ? p.split(path.sep).join('/') : p;
 
 // Mock fs module before importing anything that uses it
 jest.mock('fs', () => ({
@@ -244,9 +250,10 @@ Use the .mdc extension for all rule files.`;
 			];
 
 			// Mock directory existence
-			mockExistsSync.mockImplementation((path) => {
-				if (path === '/test/assets/kiro-hooks') return true;
-				if (path === '/test/project/.kiro/hooks') return false;
+			mockExistsSync.mockImplementation((p) => {
+				const posix = toPosix(p);
+				if (posix === '/test/assets/kiro-hooks') return true;
+				if (posix === '/test/project/.kiro/hooks') return false;
 				return true;
 			});
 
@@ -257,19 +264,20 @@ Use the .mdc extension for all rule files.`;
 			kiroProfile.onPostConvertRulesProfile(projectRoot, assetsDir);
 
 			// Verify hooks directory was created
-			expect(mockMkdirSync).toHaveBeenCalledWith('/test/project/.kiro/hooks', {
-				recursive: true
-			});
+			expect(mockMkdirSync).toHaveBeenCalledWith(
+				path.join('/test/project', '.kiro', 'hooks'),
+				{ recursive: true }
+			);
 
 			// Verify only .kiro.hook files were copied
 			expect(mockCopyFileSync).toHaveBeenCalledTimes(2);
 			expect(mockCopyFileSync).toHaveBeenCalledWith(
-				'/test/assets/kiro-hooks/tm-test-hook1.kiro.hook',
-				'/test/project/.kiro/hooks/tm-test-hook1.kiro.hook'
+				path.join('/test/assets', 'kiro-hooks', 'tm-test-hook1.kiro.hook'),
+				path.join('/test/project', '.kiro', 'hooks', 'tm-test-hook1.kiro.hook')
 			);
 			expect(mockCopyFileSync).toHaveBeenCalledWith(
-				'/test/assets/kiro-hooks/tm-test-hook2.kiro.hook',
-				'/test/project/.kiro/hooks/tm-test-hook2.kiro.hook'
+				path.join('/test/assets', 'kiro-hooks', 'tm-test-hook2.kiro.hook'),
+				path.join('/test/project', '.kiro', 'hooks', 'tm-test-hook2.kiro.hook')
 			);
 		});
 
@@ -290,8 +298,8 @@ Use the .mdc extension for all rule files.`;
 
 			// Verify hook was copied
 			expect(mockCopyFileSync).toHaveBeenCalledWith(
-				'/test/assets/kiro-hooks/tm-test-hook.kiro.hook',
-				'/test/project/.kiro/hooks/tm-test-hook.kiro.hook'
+				path.join('/test/assets', 'kiro-hooks', 'tm-test-hook.kiro.hook'),
+				path.join('/test/project', '.kiro', 'hooks', 'tm-test-hook.kiro.hook')
 			);
 		});
 
@@ -300,8 +308,8 @@ Use the .mdc extension for all rule files.`;
 			const assetsDir = '/test/assets';
 
 			// Mock source directory doesn't exist
-			mockExistsSync.mockImplementation((path) => {
-				if (path === '/test/assets/kiro-hooks') return false;
+			mockExistsSync.mockImplementation((p) => {
+				if (toPosix(p) === '/test/assets/kiro-hooks') return false;
 				return true;
 			});
 

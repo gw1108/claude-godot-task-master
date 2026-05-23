@@ -29,6 +29,10 @@ export function getProjectIdentifier(projectRoot: string): string {
 		'-' +
 		absolutePath
 			.replace(/^\//, '')
+			// Strip Windows drive letter prefix (e.g., "C:\\" or "C:/") so the
+			// resulting identifier matches the POSIX-style "-segment-segment"
+			// pattern regardless of platform.
+			.replace(/^[A-Za-z]:[\\/]?/, '')
 			.replace(/[^a-zA-Z0-9]+/g, '-')
 			.replace(/-+/g, '-')
 			.replace(/-+$/, '')

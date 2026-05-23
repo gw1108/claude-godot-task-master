@@ -2,6 +2,7 @@
  * @fileoverview Unit tests for LoopDomain
  */
 
+import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoopDomain } from './loop-domain.js';
 import type { ConfigManager } from '../config/managers/config-manager.js';
@@ -33,7 +34,9 @@ describe('LoopDomain', () => {
 			const domain = new LoopDomain(customManager);
 			// Verify by checking buildConfig output
 			const config = (domain as any).buildConfig({});
-			expect(config.progressFile).toBe('/custom/root/.taskmaster/progress.txt');
+			expect(config.progressFile).toBe(
+				path.join('/custom/root', '.taskmaster', 'progress.txt')
+			);
 		});
 
 		it('should call getProjectRoot on ConfigManager', () => {
@@ -60,7 +63,7 @@ describe('LoopDomain', () => {
 		it('should construct progressFile from projectRoot', () => {
 			const config = (loopDomain as any).buildConfig({});
 			expect(config.progressFile).toBe(
-				'/test/project/.taskmaster/progress.txt'
+				path.join('/test/project', '.taskmaster', 'progress.txt')
 			);
 		});
 

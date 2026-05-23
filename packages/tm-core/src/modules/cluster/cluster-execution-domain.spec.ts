@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import * as fsp from 'node:fs/promises';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IStorage } from '../../common/interfaces/storage.interface.js';
 import type { Task } from '../../common/types/index.js';
@@ -380,7 +381,13 @@ describe('ClusterExecutionDomain', () => {
 			const plan = await domain.buildExecutionPlan({ tag: 'my-tag' });
 
 			expect(plan.checkpointPath).toBe(
-				'/my/project/.taskmaster/execution/my-tag/checkpoint.json'
+				path.join(
+					'/my/project',
+					'.taskmaster',
+					'execution',
+					'my-tag',
+					'checkpoint.json'
+				)
 			);
 		});
 	});
@@ -420,7 +427,13 @@ describe('ClusterExecutionDomain', () => {
 			expect(prompt).toContain('prompt-fields');
 			expect(prompt).toContain('/test/project');
 			expect(prompt).toContain(
-				'/test/project/.taskmaster/execution/prompt-fields/checkpoint.json'
+				path.join(
+					'/test/project',
+					'.taskmaster',
+					'execution',
+					'prompt-fields',
+					'checkpoint.json'
+				)
 			);
 		});
 	});
@@ -438,13 +451,31 @@ describe('ClusterExecutionDomain', () => {
 
 			expect(fs.mkdir).toHaveBeenCalled();
 			expect(fs.writeFile).toHaveBeenCalledWith(
-				'/proj/.taskmaster/execution/my-tag/checkpoint.json.tmp',
+				path.join(
+					'/proj',
+					'.taskmaster',
+					'execution',
+					'my-tag',
+					'checkpoint.json.tmp'
+				),
 				expect.any(String),
 				'utf-8'
 			);
 			expect(fs.rename).toHaveBeenCalledWith(
-				'/proj/.taskmaster/execution/my-tag/checkpoint.json.tmp',
-				'/proj/.taskmaster/execution/my-tag/checkpoint.json'
+				path.join(
+					'/proj',
+					'.taskmaster',
+					'execution',
+					'my-tag',
+					'checkpoint.json.tmp'
+				),
+				path.join(
+					'/proj',
+					'.taskmaster',
+					'execution',
+					'my-tag',
+					'checkpoint.json'
+				)
 			);
 		});
 
@@ -497,7 +528,13 @@ describe('ClusterExecutionDomain', () => {
 			await domain.clearCheckpoint('my-tag');
 
 			expect(fs.unlink).toHaveBeenCalledWith(
-				'/proj/.taskmaster/execution/my-tag/checkpoint.json'
+				path.join(
+					'/proj',
+					'.taskmaster',
+					'execution',
+					'my-tag',
+					'checkpoint.json'
+				)
 			);
 		});
 

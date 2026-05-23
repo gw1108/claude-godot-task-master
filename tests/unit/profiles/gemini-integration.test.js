@@ -118,8 +118,9 @@ describe('Gemini Profile Integration', () => {
 
 		// Assert - Gemini profile should create settings.json instead of mcp.json
 		const writeFileCalls = fs.writeFileSync.mock.calls;
+		const expectedPath = path.join('.gemini', 'settings.json');
 		const settingsJsonCall = writeFileCalls.find((call) =>
-			call[0].toString().includes('.gemini/settings.json')
+			call[0].toString().includes(expectedPath)
 		);
 		expect(settingsJsonCall).toBeDefined();
 	});

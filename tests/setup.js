@@ -4,6 +4,50 @@
  * This file is run before each test suite to set up the test environment.
  */
 
+// Defuse a Node 24 + Jest 29 + signal-exit v3 interaction.
+//
+// signal-exit v3 (pulled in transitively by proper-lockfile / ink etc.)
+// adds three own-properties to `process` over its lifecycle:
+//   - `__signal_exit_emitter__` (at module-load)
+//   - `emit` / `reallyExit` (when `load()` runs, shadowing the prototype methods)
+// All three are added as enumerable own-properties, which leaks them into
+// `Object.keys(process)`.
+//
+// Jest's `_importCoreModule` builds a SyntheticModule for the `process`
+// core module from `Object.keys(required)` at construction time, then
+// later calls `setExport(key, value)` for each `Object.entries(required)`
+// at evaluation time.  If signal-exit ran between those two snapshots,
+// the second one has extra keys the first did not — and Jest throws
+// `Export 'X' is not defined in module`, cascading through anything that
+// imports chalk.
+//
+// Pre-defining each of these as **non-enumerable** keeps them out of
+// `Object.keys(process)` entirely.  `=` assignment preserves
+// non-enumerable on existing properties, so signal-exit's later mutations
+// stay invisible to Object.keys.
+for (const key of ['__signal_exit_emitter__', 'emit', 'reallyExit']) {
+	const existing = Object.getOwnPropertyDescriptor(process, key);
+	// If the property already exists as own, mark it non-enumerable. If it
+	// only lives on the prototype (e.g. emit/reallyExit before signal-exit
+	// has run), create an own property mirror that is non-enumerable so
+	// future signal-exit assignments keep that flag.
+	if (existing) {
+		if (existing.configurable && existing.enumerable) {
+			Object.defineProperty(process, key, {
+				...existing,
+				enumerable: false
+			});
+		}
+	} else {
+		Object.defineProperty(process, key, {
+			value: process[key],
+			writable: true,
+			enumerable: false,
+			configurable: true
+		});
+	}
+}
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 

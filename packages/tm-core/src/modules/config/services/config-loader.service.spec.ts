@@ -3,6 +3,7 @@
  */
 
 import * as fsPromises from 'node:fs/promises';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG_VALUES } from '../../../common/interfaces/configuration.interface.js';
 import { ConfigLoader } from './config-loader.service.js';
@@ -58,7 +59,7 @@ describe('ConfigLoader', () => {
 			const result = await configLoader.loadLocalConfig();
 
 			expect(fsPromises.readFile).toHaveBeenCalledWith(
-				'/test/project/.taskmaster/config.json',
+				path.join('/test/project', '.taskmaster', 'config.json'),
 				'utf-8'
 			);
 			expect(result).toEqual(mockConfig);
@@ -104,7 +105,7 @@ describe('ConfigLoader', () => {
 			const result = await configLoader.hasLocalConfig();
 
 			expect(fsPromises.access).toHaveBeenCalledWith(
-				'/test/project/.taskmaster/config.json'
+				path.join('/test/project', '.taskmaster', 'config.json')
 			);
 			expect(result).toBe(true);
 		});
@@ -125,7 +126,7 @@ describe('ConfigLoader', () => {
 			const result = await configLoader.hasGlobalConfig();
 
 			expect(fsPromises.access).toHaveBeenCalledWith(
-				expect.stringContaining('.taskmaster/config.json')
+				expect.stringContaining(path.join('.taskmaster', 'config.json'))
 			);
 			expect(result).toBe(true);
 		});

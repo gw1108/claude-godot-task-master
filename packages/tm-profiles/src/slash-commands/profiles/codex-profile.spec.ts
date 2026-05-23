@@ -396,7 +396,7 @@ describe('CodexProfile', () => {
 			const result = profile.getCommandsPath('/any/path');
 
 			// Assert
-			expect(result).toBe('/custom/home/.codex/prompts');
+			expect(result).toBe(path.join(customHomeDir, '.codex/prompts'));
 		});
 	});
 

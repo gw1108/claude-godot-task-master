@@ -66,7 +66,17 @@ describe('loop command', () => {
 		}
 
 		if (testDir && fs.existsSync(testDir)) {
-			fs.rmSync(testDir, { recursive: true, force: true });
+			try {
+				fs.rmSync(testDir, {
+					recursive: true,
+					force: true,
+					maxRetries: 5,
+					retryDelay: 100
+				});
+			} catch {
+				// On Windows, transient file locks can still block removal even
+				// with maxRetries. Don't fail the test on cleanup issues.
+			}
 		}
 
 		delete process.env.TASKMASTER_SKIP_AUTO_UPDATE;
@@ -77,7 +87,10 @@ describe('loop command', () => {
 			const output = execSync(`node "${binPath}" loop ${args}`, {
 				encoding: 'utf-8',
 				stdio: 'pipe',
-				timeout: 5000, // Short timeout since we can't actually run claude
+				// Short-ish timeout since we can't actually run claude, but it
+				// must be long enough for CLI startup. On Windows node startup
+				// is ~9s, so 30s gives headroom for validation failures.
+				timeout: 30000,
 				env: { ...process.env, TASKMASTER_SKIP_AUTO_UPDATE: '1' }
 			});
 			return { output, exitCode: 0 };
