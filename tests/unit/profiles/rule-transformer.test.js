@@ -172,10 +172,11 @@ describe('Rule Transformer - General', () => {
 
 				if (profileConfig.mcpConfig !== false) {
 					// Check that mcpConfigPath is properly constructed
-					const expectedPath = path.join(
-						profileConfig.profileDir,
-						profileConfig.mcpConfigName
-					);
+					// mcpConfigPath is stored as POSIX-style for cross-platform stability.
+					const expectedPath =
+						profileConfig.profileDir === '.'
+							? profileConfig.mcpConfigName
+							: `${profileConfig.profileDir}/${profileConfig.mcpConfigName}`;
 					expect(profileConfig.mcpConfigPath).toBe(expectedPath);
 				}
 			});

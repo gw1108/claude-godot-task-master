@@ -3,6 +3,7 @@
  */
 
 import * as fs from 'node:fs/promises';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG_VALUES } from '../../../common/interfaces/configuration.interface.js';
 import { RuntimeStateManager } from './runtime-state-manager.service.js';
@@ -38,7 +39,7 @@ describe('RuntimeStateManager', () => {
 			const state = await stateManager.loadState();
 
 			expect(fs.readFile).toHaveBeenCalledWith(
-				'/test/project/.taskmaster/state.json',
+				path.join('/test/project', '.taskmaster', 'state.json'),
 				'utf-8'
 			);
 			expect(state.currentTag).toBe('feature-branch');
@@ -105,13 +106,16 @@ describe('RuntimeStateManager', () => {
 			await stateManager.setCurrentTag('test-tag');
 
 			// Verify mkdir was called
-			expect(fs.mkdir).toHaveBeenCalledWith('/test/project/.taskmaster', {
-				recursive: true
-			});
+			expect(fs.mkdir).toHaveBeenCalledWith(
+				path.join('/test/project', '.taskmaster'),
+				{
+					recursive: true
+				}
+			);
 
 			// Verify writeFile was called with correct data
 			expect(fs.writeFile).toHaveBeenCalledWith(
-				'/test/project/.taskmaster/state.json',
+				path.join('/test/project', '.taskmaster', 'state.json'),
 				expect.stringContaining('"currentTag": "test-tag"'),
 				'utf-8'
 			);
@@ -230,7 +234,7 @@ describe('RuntimeStateManager', () => {
 			await stateManager.clearState();
 
 			expect(fs.unlink).toHaveBeenCalledWith(
-				'/test/project/.taskmaster/state.json'
+				path.join('/test/project', '.taskmaster', 'state.json')
 			);
 			expect(stateManager.getCurrentTag()).toBe(
 				DEFAULT_CONFIG_VALUES.TAGS.DEFAULT_TAG

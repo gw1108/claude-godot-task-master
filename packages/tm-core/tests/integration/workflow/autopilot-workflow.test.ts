@@ -38,8 +38,9 @@ import { WorkflowStateManager } from '../../../src/modules/workflow/managers/wor
 import { WorkflowService } from '../../../src/modules/workflow/services/workflow.service.js';
 import type { WorkflowState } from '../../../src/modules/workflow/types.js';
 
-// Store original HOME to restore after tests
+// Store original home env vars to restore after tests
 const originalHome = process.env.HOME;
+const originalUserProfile = process.env.USERPROFILE;
 
 describe('Autopilot Workflow Integration', () => {
 	let testProjectDir: string;
@@ -83,7 +84,9 @@ describe('Autopilot Workflow Integration', () => {
 
 		// Override HOME so os.homedir() returns our temp directory
 		// This prevents tests from polluting the real ~/.taskmaster/
+		// On Windows os.homedir() reads USERPROFILE, not HOME.
 		process.env.HOME = testHomeDir;
+		process.env.USERPROFILE = testHomeDir;
 
 		// Create state manager AFTER setting HOME (uses os.homedir() internally)
 		stateManager = new WorkflowStateManager(testProjectDir);
@@ -120,8 +123,13 @@ describe('Autopilot Workflow Integration', () => {
 	});
 
 	afterEach(() => {
-		// Restore original HOME
+		// Restore original home env vars
 		process.env.HOME = originalHome;
+		if (originalUserProfile === undefined) {
+			delete process.env.USERPROFILE;
+		} else {
+			process.env.USERPROFILE = originalUserProfile;
+		}
 
 		// Clean up temp directories
 		if (testProjectDir && fs.existsSync(testProjectDir)) {
@@ -166,8 +174,11 @@ describe('Autopilot Workflow Integration', () => {
 
 			// Should contain sanitized project path as identifier
 			// The path should be like: ~/.taskmaster/-tmp-...-tm-workflow-project-.../sessions/workflow-state.json
+			const sepPattern = path.sep === '\\' ? '\\\\' : '/';
 			expect(statePath).toMatch(
-				/\.taskmaster\/-[^/]+\/sessions\/workflow-state\.json$/
+				new RegExp(
+					`\\.taskmaster${sepPattern}-[^${sepPattern}]+${sepPattern}sessions${sepPattern}workflow-state\\.json$`
+				)
 			);
 		});
 	});

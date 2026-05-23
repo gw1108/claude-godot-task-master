@@ -718,29 +718,40 @@ test('getTagAwareFilePath should use slugified tags in file paths', () => {
 	const basePath = '.taskmaster/reports/complexity-report.json';
 	const projectRoot = '/test/project';
 
+	// path.format preserves the existing separator in `dir`, while path.join
+	// converts everything to the platform separator. Normalize both sides to
+	// POSIX-style for comparison so the assertion is portable.
+	const normalize = (p) => p.replace(/\\/g, '/');
+
 	// Master tag should not be slugified
-	expect(getTagAwareFilePath(basePath, 'master', projectRoot)).toBe(
+	expect(normalize(getTagAwareFilePath(basePath, 'master', projectRoot))).toBe(
 		'/test/project/.taskmaster/reports/complexity-report.json'
 	);
 
 	// Null/undefined tags should use base path
-	expect(getTagAwareFilePath(basePath, null, projectRoot)).toBe(
+	expect(normalize(getTagAwareFilePath(basePath, null, projectRoot))).toBe(
 		'/test/project/.taskmaster/reports/complexity-report.json'
 	);
 
 	// Regular tag should be slugified
-	expect(getTagAwareFilePath(basePath, 'feature-branch', projectRoot)).toBe(
+	expect(
+		normalize(getTagAwareFilePath(basePath, 'feature-branch', projectRoot))
+	).toBe(
 		'/test/project/.taskmaster/reports/complexity-report_feature-branch.json'
 	);
 
 	// Tag with special characters should be slugified
-	expect(getTagAwareFilePath(basePath, 'feature/user-auth', projectRoot)).toBe(
+	expect(
+		normalize(getTagAwareFilePath(basePath, 'feature/user-auth', projectRoot))
+	).toBe(
 		'/test/project/.taskmaster/reports/complexity-report_feature-user-auth.json'
 	);
 
 	// Tag with spaces and special characters
 	expect(
-		getTagAwareFilePath(basePath, 'Feature Branch @Test', projectRoot)
+		normalize(
+			getTagAwareFilePath(basePath, 'Feature Branch @Test', projectRoot)
+		)
 	).toBe(
 		'/test/project/.taskmaster/reports/complexity-report_feature-branch-test.json'
 	);

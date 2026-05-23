@@ -6,9 +6,13 @@ import rootConfig from '../../vitest.config';
  * Extends root config with CLI-specific settings
  *
  * Integration tests (.test.ts) spawn CLI processes and need more time.
- * The 30s timeout is reasonable now that auto-update network calls are skipped
- * when TASKMASTER_SKIP_AUTO_UPDATE=1 or NODE_ENV=test.
+ * On Windows, node startup is ~9s per spawn (vs ~50ms on Linux) due to
+ * Defender and CreateProcess overhead, so tests that exec multiple CLI
+ * commands need a much larger budget. We bump the timeouts on win32 to
+ * keep CI behavior tight on Unix.
  */
+const isWindows = process.platform === 'win32';
+
 export default mergeConfig(
 	rootConfig,
 	defineConfig({
@@ -20,9 +24,8 @@ export default mergeConfig(
 				'src/**/*.test.ts',
 				'src/**/*.spec.ts'
 			],
-			// Integration tests spawn CLI processes - 30s is reasonable with optimized startup
-			testTimeout: 30000,
-			hookTimeout: 15000,
+			testTimeout: isWindows ? 120000 : 30000,
+			hookTimeout: isWindows ? 60000 : 15000,
 			maxWorkers: 4
 		}
 	})

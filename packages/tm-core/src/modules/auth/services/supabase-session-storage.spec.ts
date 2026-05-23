@@ -100,22 +100,25 @@ describe('SupabaseSessionStorage', () => {
 			expect(files).toEqual([path.basename(sessionPath)]);
 		});
 
-		it('should maintain correct file permissions (0700 for directory)', async () => {
-			const storage = new SupabaseSessionStorage(sessionPath);
+		it.skipIf(process.platform === 'win32')(
+			'should maintain correct file permissions (0700 for directory)',
+			async () => {
+				const storage = new SupabaseSessionStorage(sessionPath);
 
-			await storage.setItem('test-key', 'test-value');
+				await storage.setItem('test-key', 'test-value');
 
-			// Check that file exists
-			expect(fsSync.existsSync(sessionPath)).toBe(true);
+				// Check that file exists
+				expect(fsSync.existsSync(sessionPath)).toBe(true);
 
-			// Check directory has correct permissions
-			const dir = path.dirname(sessionPath);
-			const stats = fsSync.statSync(dir);
-			const mode = stats.mode & 0o777;
+				// Check directory has correct permissions
+				const dir = path.dirname(sessionPath);
+				const stats = fsSync.statSync(dir);
+				const mode = stats.mode & 0o777;
 
-			// Directory should be readable/writable/executable by owner only (0700)
-			expect(mode).toBe(0o700);
-		});
+				// Directory should be readable/writable/executable by owner only (0700)
+				expect(mode).toBe(0o700);
+			}
+		);
 	});
 
 	describe('basic operations', () => {

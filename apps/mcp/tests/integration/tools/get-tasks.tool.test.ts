@@ -71,7 +71,8 @@ describe('get_tasks MCP tool', () => {
 			`${key}=${value}`
 		]);
 
-		const npxBin = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+		const isWindows = process.platform === 'win32';
+		const npxBin = isWindows ? 'npx.cmd' : 'npx';
 		const output = execFileSync(
 			npxBin,
 			[
@@ -85,7 +86,9 @@ describe('get_tasks MCP tool', () => {
 				toolName,
 				...toolArgs
 			],
-			{ encoding: 'utf-8', stdio: 'pipe' }
+			// shell:true is required on Windows to run .cmd shims since
+			// Node 18+ rejects them with EINVAL otherwise (CVE-2024-27980).
+			{ encoding: 'utf-8', stdio: 'pipe', shell: isWindows }
 		);
 
 		// Parse the MCP protocol response: { content: [{ type: "text", text: "<json>" }] }
