@@ -158,7 +158,8 @@ export type {
 	LoopIteration,
 	LoopResult,
 	LoopOutputCallbacks,
-	LoopTraceLevel
+	LoopTraceLevel,
+	TestPhaseResult
 } from './modules/loop/index.js';
 export { LoopDomain, PRESET_NAMES } from './modules/loop/index.js';
 
@@ -217,7 +218,7 @@ export {
 	PRBodyFormatter,
 	type PRBodyFormatterOptions,
 	type CommitInfo,
-	type TestPhaseResult
+	type TestPhaseResult as PRTestPhaseResult
 } from './modules/git/services/pr-body-formatter.js';
 
 // Tasks - Advanced

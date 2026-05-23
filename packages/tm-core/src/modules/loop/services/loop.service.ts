@@ -21,8 +21,10 @@ import type {
 	LoopPreset,
 	LoopResult,
 	LoopTokenUsage,
-	LoopTraceLevel
+	LoopTraceLevel,
+	TestPhaseResult
 } from '../types.js';
+import { makePostCommitTestPreset } from '../presets/post-commit-test.js';
 import { atLeast } from './trace-level.js';
 
 export interface LoopServiceOptions {
@@ -62,6 +64,13 @@ type IterationTelemetry = {
 	duration?: number;
 };
 
+type TestPhaseTelemetry = {
+	parentSha: string;
+	duration?: number;
+	status: TestPhaseResult['status'];
+	testCommitSha?: string;
+};
+
 export class LoopService {
 	private readonly projectRoot: string;
 	private readonly logger = getLogger('LoopService');
@@ -70,6 +79,8 @@ export class LoopService {
 	private iterationTelemetry: IterationTelemetry[] = [];
 	private pendingSummaries: { iterationNum: number; text: string }[] = [];
 	private lastCommitAt = 0;
+	private testPhases: TestPhaseResult[] = [];
+	private testPhaseTelemetry: TestPhaseTelemetry[] = [];
 
 	private static readonly WRITE_TOOLS = new Set([
 		'Write',
@@ -241,6 +252,8 @@ export class LoopService {
 
 		this._isRunning = true;
 		this.iterationTelemetry = [];
+		this.testPhases = [];
+		this.testPhaseTelemetry = [];
 		const batchCommit = config.batchCommit ?? true;
 		if (batchCommit) {
 			this.pendingSummaries = [];
@@ -414,14 +427,16 @@ export class LoopService {
 			startedAt: new Date(loopStart).toISOString(),
 			finishedAt: finishedAt.toISOString(),
 			totalDuration,
-			...(sessionId !== undefined && { sessionId })
+			...(sessionId !== undefined && { sessionId }),
+			...(this.testPhases.length > 0 && { testPhases: [...this.testPhases] })
 		};
 		await this.appendFinalSummary(config.progressFile, result);
 		if (this.iterationTelemetry.length > 0) {
 			await this.writeTotalsFile(
 				config.progressFile,
 				result,
-				this.iterationTelemetry
+				this.iterationTelemetry,
+				this.testPhaseTelemetry
 			);
 		}
 		config.callbacks?.onLoopEnd?.(finishedAt, totalDuration);
@@ -522,7 +537,8 @@ export class LoopService {
 	private async writeTotalsFile(
 		progressFile: string,
 		result: LoopResult,
-		telemetry: IterationTelemetry[]
+		telemetry: IterationTelemetry[],
+		testPhaseTelemetry?: TestPhaseTelemetry[]
 	): Promise<void> {
 		if (telemetry.length === 0) return;
 
@@ -596,7 +612,21 @@ export class LoopService {
 			tableHeader,
 			tableSep,
 			tableRows,
-			''
+			'',
+			...(testPhaseTelemetry && testPhaseTelemetry.length > 0
+				? [
+						'## Test Phases',
+						`- Total test phases: ${testPhaseTelemetry.length}`,
+						'',
+						'| Parent SHA | Status | Duration | Test commit SHA |',
+						'|------------|--------|----------|-----------------|',
+						...testPhaseTelemetry.map(
+							(t) =>
+								`| ${t.parentSha} | ${t.status} | ${t.duration !== undefined ? `${t.duration}ms` : '—'} | ${t.testCommitSha ?? '—'} |`
+						),
+						''
+					]
+				: [])
 		].join('\n');
 
 		await writeFile(this.totalsFilePath(progressFile), content, 'utf-8');
@@ -663,6 +693,10 @@ export class LoopService {
 			const last = await gitAdapter.getLastCommit();
 			sha = typeof last?.hash === 'string' ? last.hash.slice(0, 7) : undefined;
 
+			if (sha) {
+				await this.runTestPhase(sha, config);
+			}
+
 			await config.callbacks?.onBatchCommit?.({
 				sha,
 				trigger,
@@ -672,6 +706,108 @@ export class LoopService {
 		} catch (err) {
 			this.logger.warn('commitBatch: git operation failed', err);
 		}
+	}
+
+	private async runTestPhase(
+		parentSha: string,
+		config: LoopConfig
+	): Promise<void> {
+		const startTime = Date.now();
+		config.callbacks?.onTestPhaseStart?.(parentSha);
+
+		let result: TestPhaseResult;
+		try {
+			const sessionPersistence = config.sessionPersistence ?? false;
+			const sessionId = sessionPersistence ? randomUUID() : undefined;
+			const level = config.traceLevel ?? 'none';
+
+			const preset = makePostCommitTestPreset(parentSha);
+			const prompt = preset.initial({ projectRoot: this.projectRoot });
+
+			const iteration = await this.executeIteration(
+				prompt,
+				0, // sentinel — out-of-band, not counted in user budget
+				config.sandbox ?? false,
+				false,
+				level,
+				undefined, // no callbacks — test phase uses its own channel
+				config.progressFile,
+				sessionPersistence,
+				1,
+				sessionId,
+				false // isResume = false — fresh session
+			);
+
+			// Map LoopIteration status → TestPhaseResult status
+			let status: TestPhaseResult['status'];
+			if (
+				iteration.status === 'complete' &&
+				iteration.message === 'NOTHING_TO_TEST'
+			) {
+				status = 'nothing_to_test';
+			} else if (iteration.status === 'complete') {
+				status = 'tests_added';
+			} else if (iteration.status === 'blocked') {
+				status = 'blocked';
+			} else {
+				status = 'error';
+			}
+
+			// Stage and commit test changes (direct, not recursive commitBatch)
+			let testCommitSha: string | undefined;
+			if (existsSync(path.join(this.projectRoot, '.git'))) {
+				const testGitAdapter = new GitAdapter(this.projectRoot);
+				const progressFile = config.progressFile;
+				const progressDir = path.dirname(progressFile);
+				const baseName = path.basename(progressFile).replace(/\.txt$/, '');
+				const excludes = [
+					progressFile,
+					path.join(progressDir, `${baseName}.iter-*.txt`),
+					path.join(progressDir, `${baseName}.totals.txt`)
+				].map((p) => path.relative(this.projectRoot, p).replace(/\\/g, '/'));
+
+				await testGitAdapter.stageAllWithExcludes(excludes);
+				if (await testGitAdapter.hasStagedChanges()) {
+					const summaryLine = iteration.summary ?? '';
+					const commitBody = summaryLine
+						? `test(loop): tests for ${parentSha}\n\n${summaryLine}\n\nParent: ${parentSha}\nTrigger: post-commit-test-phase`
+						: `test(loop): tests for ${parentSha}\n\nParent: ${parentSha}\nTrigger: post-commit-test-phase`;
+					await testGitAdapter.createCommit(commitBody, {});
+					const testLast = await testGitAdapter.getLastCommit();
+					testCommitSha =
+						typeof testLast?.hash === 'string'
+							? testLast.hash.slice(0, 7)
+							: undefined;
+				}
+			}
+
+			result = {
+				parentSha,
+				status,
+				summary: iteration.summary,
+				message: iteration.message,
+				duration: Date.now() - startTime,
+				testCommitSha
+			};
+		} catch (err) {
+			this.logger.warn('runTestPhase: unexpected error', err);
+			result = {
+				parentSha,
+				status: 'error',
+				message: err instanceof Error ? err.message : String(err),
+				duration: Date.now() - startTime
+			};
+		}
+
+		this.testPhases.push(result);
+		this.testPhaseTelemetry.push({
+			parentSha,
+			duration: result.duration,
+			status: result.status,
+			testCommitSha: result.testCommitSha
+		});
+
+		config.callbacks?.onTestPhaseEnd?.(result);
 	}
 
 	private formatJsonBlockForFile(value: unknown): string {

@@ -19,7 +19,8 @@ export type {
 	LoopIteration,
 	LoopResult,
 	LoopOutputCallbacks,
-	LoopTraceLevel
+	LoopTraceLevel,
+	TestPhaseResult
 } from './types.js';
 
 // Presets - content and helpers

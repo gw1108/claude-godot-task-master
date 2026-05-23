@@ -92,6 +92,10 @@ export interface LoopOutputCallbacks {
 		summaryCount: number;
 		bodyBytes: number;
 	}): void | Promise<void>;
+	/** Called when a post-commit test phase begins (parentSha is the 7-char short sha) */
+	onTestPhaseStart?(parentSha: string): void;
+	/** Called when a post-commit test phase ends */
+	onTestPhaseEnd?(result: TestPhaseResult): void;
 
 	// ---- Trace-only callbacks ----
 
@@ -222,6 +226,24 @@ export interface LoopIteration {
 }
 
 /**
+ * Result of a post-commit test phase triggered after a batched implementation commit.
+ */
+export interface TestPhaseResult {
+	/** SHA of the parent implementation commit that triggered this phase */
+	parentSha: string;
+	/** Outcome of the test phase */
+	status: 'tests_added' | 'nothing_to_test' | 'blocked' | 'error';
+	/** One-line summary from the LLM's <loop-summary> tag */
+	summary?: string;
+	/** Message from <loop-blocked> or error description */
+	message?: string;
+	/** Wall-clock duration of the test phase in ms */
+	duration?: number;
+	/** Short SHA of the follow-up test commit, if one was created */
+	testCommitSha?: string;
+}
+
+/**
  * Overall result of a loop execution
  */
 export interface LoopResult {
@@ -243,4 +265,6 @@ export interface LoopResult {
 	totalDuration?: number;
 	/** Session id of the most-recently-active claude session (only set when sessionPersistence=true) */
 	sessionId?: string;
+	/** Test phase results for each batched commit that triggered a test phase */
+	testPhases?: TestPhaseResult[];
 }
