@@ -153,6 +153,7 @@ export type {
 // Loop types
 export type {
 	LoopPreset,
+	LoopPresetDef,
 	LoopConfig,
 	LoopIteration,
 	LoopResult,

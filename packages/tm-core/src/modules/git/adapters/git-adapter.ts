@@ -525,6 +525,18 @@ export class GitAdapter {
 		await this.git.add(files);
 	}
 
+	/** Stage all files except the given paths (pathspec exclude). */
+	async stageAllWithExcludes(excludePaths: string[]): Promise<void> {
+		const args = [
+			'add',
+			'-A',
+			'--',
+			'.',
+			...excludePaths.map((p) => `:(exclude)${p}`)
+		];
+		await this.git.raw(args);
+	}
+
 	/**
 	 * Unstages files that were previously staged.
 	 *

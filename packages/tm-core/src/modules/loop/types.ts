@@ -15,6 +15,12 @@ export type LoopPreset =
 /** Context passed to preset factory functions so projectRoot is injected at call time */
 export type PresetCtx = { projectRoot: string };
 
+/** Shape of a loop preset — initial prompt for iter 1 and a short continuation for resume iters */
+export interface LoopPresetDef {
+	initial: (ctx: PresetCtx) => string;
+	continuation: (ctx: PresetCtx) => string;
+}
+
 /**
  * Per-iteration summary of tool-call activity (emitted at iteration end in trace mode).
  */
@@ -79,6 +85,13 @@ export interface LoopOutputCallbacks {
 	onIterationEnd?: (iteration: LoopIteration) => void;
 	/** Called once when the loop finishes (success, early exit, or error) */
 	onLoopEnd?: (finishedAt: Date, totalDuration: number) => void;
+	/** Called after a batched git commit fires (all modes, when batchCommit is enabled) */
+	onBatchCommit?(info: {
+		sha?: string;
+		trigger: 'timer' | 'finalize';
+		summaryCount: number;
+		bodyBytes: number;
+	}): void | Promise<void>;
 
 	// ---- Trace-only callbacks ----
 
@@ -105,7 +118,7 @@ export interface LoopOutputCallbacks {
 			writeToolCalls?: number;
 			nonWriteToolCalls?: number;
 			estimatedContext?: number;
-			percentOf1M?: number;
+			contextPercent?: number;
 			modelId?: string;
 		}
 	) => void;
@@ -168,6 +181,10 @@ export interface LoopConfig {
 	 * specific iteration with `claude --resume`).
 	 */
 	sessionPersistence?: boolean;
+	/** Minutes between batched git commits (default: 20). */
+	commitWindowMinutes?: number;
+	/** Enable batched git commits (default: true). */
+	batchCommit?: boolean;
 	/**
 	 * Output callbacks for presentation layer (CLI/MCP).
 	 * If not provided, the service runs silently (no console output).
@@ -198,6 +215,10 @@ export interface LoopIteration {
 	 * Can be large - use `includeOutput=false` to save memory.
 	 */
 	output?: string;
+	/** One-line summary emitted by the LLM via <loop-summary> marker (undefined if absent). */
+	summary?: string;
+	/** Estimated context usage as percentage of the model's context window (verbose/trace mode only). */
+	contextPercent?: number;
 }
 
 /**
@@ -220,4 +241,6 @@ export interface LoopResult {
 	finishedAt?: string;
 	/** Total wall-clock duration of the loop in milliseconds (includes inter-iteration sleeps) */
 	totalDuration?: number;
+	/** Session id of the most-recently-active claude session (only set when sessionPersistence=true) */
+	sessionId?: string;
 }

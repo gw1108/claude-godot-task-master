@@ -65,6 +65,18 @@ const LoopSchema = z.object({
 		.describe(
 			'Task tag to scope the loop to. Omit to use the currently active tag.'
 		),
+	commitWindowMinutes: z
+		.number()
+		.int()
+		.positive()
+		.optional()
+		.describe('Minutes between batched git commits. Default: 20'),
+	batchCommit: z
+		.boolean()
+		.optional()
+		.describe(
+			'Enable batched git commits. Default: true. Set false to disable.'
+		),
 	projectRoot: z
 		.string()
 		.describe('Absolute path to the project root directory.')
@@ -97,6 +109,8 @@ export function registerLoopTool(server: FastMCP) {
 					sessionPersistence,
 					progressFile,
 					tag,
+					commitWindowMinutes,
+					batchCommit,
 					projectRoot
 				} = args;
 
@@ -112,7 +126,9 @@ export function registerLoopTool(server: FastMCP) {
 						includeOutput,
 						sessionPersistence,
 						progressFile,
-						tag
+						tag,
+						commitWindowMinutes,
+						batchCommit
 					});
 
 					log.info(

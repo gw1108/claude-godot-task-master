@@ -3,11 +3,17 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getLogger } from '../../../common/logger/index.js';
-import { PRESETS, isPreset as checkIsPreset } from '../presets/index.js';
+import { GitAdapter } from '../../git/adapters/git-adapter.js';
+import {
+	PRESETS,
+	getPreset,
+	isPreset as checkIsPreset
+} from '../presets/index.js';
 import type {
 	LoopConfig,
 	LoopIteration,
@@ -23,6 +29,20 @@ export interface LoopServiceOptions {
 	projectRoot: string;
 }
 
+const MODEL_CONTEXT_WINDOW: Array<{ pattern: RegExp; tokens: number }> = [
+	{ pattern: /opus/i, tokens: 1_000_000 },
+	{ pattern: /sonnet/i, tokens: 200_000 },
+	{ pattern: /haiku/i, tokens: 200_000 }
+];
+
+export function contextWindowFor(modelId: string | undefined): number {
+	if (!modelId) return 1_000_000;
+	const match = MODEL_CONTEXT_WINDOW.find(({ pattern }) =>
+		pattern.test(modelId)
+	);
+	return match?.tokens ?? 1_000_000;
+}
+
 type IterationFileLine = {
 	level: 'verbose' | 'trace' | 'separator';
 	content: string;
@@ -36,7 +56,7 @@ type IterationTelemetry = {
 	nonWriteToolCalls: number;
 	tokenUsage?: LoopTokenUsage;
 	estimatedContext: number;
-	percentOf1M?: number;
+	contextPercent?: number;
 	modelId?: string;
 	status: LoopIteration['status'];
 	duration?: number;
@@ -46,7 +66,10 @@ export class LoopService {
 	private readonly projectRoot: string;
 	private readonly logger = getLogger('LoopService');
 	private _isRunning = false;
+	private _currentSessionId: string | undefined = undefined;
 	private iterationTelemetry: IterationTelemetry[] = [];
+	private pendingSummaries: { iterationNum: number; text: string }[] = [];
+	private lastCommitAt = 0;
 
 	private static readonly WRITE_TOOLS = new Set([
 		'Write',
@@ -54,6 +77,14 @@ export class LoopService {
 		'MultiEdit',
 		'NotebookEdit'
 	]);
+
+	private static readonly PRESET_COMMIT_PREFIX: Record<string, string> = {
+		default: 'feat',
+		'test-coverage': 'test',
+		linting: 'fix',
+		duplication: 'refactor',
+		entropy: 'refactor'
+	};
 
 	constructor(options: LoopServiceOptions) {
 		this.projectRoot = options.projectRoot;
@@ -210,9 +241,23 @@ export class LoopService {
 
 		this._isRunning = true;
 		this.iterationTelemetry = [];
+		const batchCommit = config.batchCommit ?? true;
+		if (batchCommit) {
+			this.pendingSummaries = [];
+			this.lastCommitAt = loopStart;
+		}
 		const iterations: LoopIteration[] = [];
 		let tasksCompleted = 0;
 		const startedAt = new Date(loopStart);
+
+		// Session persistence: generate a UUID before iteration 1; rotate on context overflow
+		const sessionPersistence = config.sessionPersistence ?? false;
+		let currentSessionId: string | undefined;
+		let isFirstInSession = true;
+		if (sessionPersistence) {
+			currentSessionId = randomUUID();
+			this._currentSessionId = currentSessionId;
+		}
 
 		await this.initProgressFile(config, startedAt);
 
@@ -224,7 +269,22 @@ export class LoopService {
 			// Notify presentation layer of iteration start
 			config.callbacks?.onIterationStart?.(i, config.iterations);
 
-			const prompt = await this.buildPrompt(config, i);
+			// Select initial vs continuation prompt based on session state
+			const isResume = sessionPersistence && !isFirstInSession;
+			let prompt: string;
+			if (isResume) {
+				if (this.isPreset(config.prompt)) {
+					prompt = getPreset(config.prompt as LoopPreset).continuation({
+						projectRoot: this.projectRoot
+					});
+				} else {
+					prompt = `Continue with your previous task. Pick up exactly where you left off, complete the next logical unit of work, and emit <loop-summary>...</loop-summary> when done.`;
+				}
+				// Wrap with context header for trace mode visibility
+				prompt = `${this.buildContextHeader(config, i)}\n\n${prompt}`;
+			} else {
+				prompt = await this.buildPrompt(config, i);
+			}
 
 			// In trace mode, emit the full prompt sent to the LLM before invoking it.
 			if (atLeast(level, 'trace')) {
@@ -239,13 +299,43 @@ export class LoopService {
 				level,
 				config.callbacks,
 				config.progressFile,
-				config.sessionPersistence ?? false,
-				config.iterations
+				sessionPersistence,
+				config.iterations,
+				currentSessionId,
+				isResume
 			);
 			iterations.push(iteration);
+			isFirstInSession = false;
+
+			// Auto-rotate session UUID when context usage crosses 40%
+			if (
+				sessionPersistence &&
+				iteration.contextPercent !== undefined &&
+				iteration.contextPercent >= 40
+			) {
+				currentSessionId = randomUUID();
+				this._currentSessionId = currentSessionId;
+				isFirstInSession = true;
+			}
 
 			// Notify presentation layer of iteration completion
 			config.callbacks?.onIterationEnd?.(iteration);
+
+			// Accumulate summary for batched commit; flush on timer
+			if (batchCommit) {
+				const summaryText = iteration.summary ?? `(iteration ${i}: no summary)`;
+				this.pendingSummaries.push({ iterationNum: i, text: summaryText });
+
+				const windowMs = (config.commitWindowMinutes ?? 20) * 60_000;
+				if (
+					Date.now() - this.lastCommitAt >= windowMs &&
+					this.pendingSummaries.length > 0
+				) {
+					await this.commitBatch('timer', config);
+					this.lastCommitAt = Date.now();
+					this.pendingSummaries = [];
+				}
+			}
 
 			// Check for early exit conditions
 			if (iteration.status === 'complete') {
@@ -254,7 +344,8 @@ export class LoopService {
 					iterations,
 					tasksCompleted + 1,
 					'all_complete',
-					loopStart
+					loopStart,
+					this._currentSessionId
 				);
 			}
 			if (iteration.status === 'blocked') {
@@ -263,7 +354,8 @@ export class LoopService {
 					iterations,
 					tasksCompleted,
 					'blocked',
-					loopStart
+					loopStart,
+					this._currentSessionId
 				);
 			}
 			if (iteration.status === 'success') {
@@ -281,7 +373,8 @@ export class LoopService {
 			iterations,
 			tasksCompleted,
 			'max_iterations',
-			loopStart
+			loopStart,
+			this._currentSessionId
 		);
 	}
 
@@ -297,9 +390,19 @@ export class LoopService {
 		iterations: LoopIteration[],
 		tasksCompleted: number,
 		finalStatus: LoopResult['finalStatus'],
-		loopStart: number
+		loopStart: number,
+		sessionId?: string
 	): Promise<LoopResult> {
 		this._isRunning = false;
+
+		if (
+			(config.batchCommit ?? true) &&
+			(finalStatus === 'all_complete' || finalStatus === 'max_iterations') &&
+			this.pendingSummaries.length > 0
+		) {
+			await this.commitBatch('finalize', config);
+		}
+
 		const finishedAtMs = Date.now();
 		const finishedAt = new Date(finishedAtMs);
 		const totalDuration = finishedAtMs - loopStart;
@@ -310,7 +413,8 @@ export class LoopService {
 			finalStatus,
 			startedAt: new Date(loopStart).toISOString(),
 			finishedAt: finishedAt.toISOString(),
-			totalDuration
+			totalDuration,
+			...(sessionId !== undefined && { sessionId })
 		};
 		await this.appendFinalSummary(config.progressFile, result);
 		if (this.iterationTelemetry.length > 0) {
@@ -454,12 +558,14 @@ export class LoopService {
 				? `- Total duration: ${fmt(result.totalDuration)}ms`
 				: '';
 
-		const tableHeader = `| Iter | Tool calls | TM | Writes | Non-writes | Total tokens | Est. context | % of 1M |`;
+		const tableHeader = `| Iter | Tool calls | TM | Writes | Non-writes | Total tokens | Est. context | % of ctx |`;
 		const tableSep = `|------|------------|----|----|--------|---------|-------|----------|`;
 		const tableRows = telemetry
 			.map((t) => {
 				const pct =
-					t.percentOf1M !== undefined ? `${t.percentOf1M.toFixed(1)}%` : '—';
+					t.contextPercent !== undefined
+						? `${t.contextPercent.toFixed(1)}%`
+						: '—';
 				const tok = t.tokenUsage ? fmt(t.tokenUsage.totalTokens) : '—';
 				return `| ${t.iterationNum} | ${fmt(t.totalToolCalls)} | ${fmt(t.taskMasterToolCalls)} | ${fmt(t.writeToolCalls)} | ${fmt(t.nonWriteToolCalls)} | ${tok} | ${fmt(t.estimatedContext)} | ${pct} |`;
 			})
@@ -502,6 +608,72 @@ export class LoopService {
 		return `${text.slice(0, maxChars)}… [truncated, ${remaining} more chars]`;
 	}
 
+	/**
+	 * Builds a commit body from accumulated summaries.
+	 * Drops oldest entries first when bytes exceed maxBytes.
+	 */
+	private truncateForCommit(
+		entries: { iterationNum: number; text: string }[],
+		maxBytes = 10_240
+	): string {
+		let body = entries.map((e) => `- [${e.iterationNum}] ${e.text}`).join('\n');
+		if (Buffer.byteLength(body, 'utf8') <= maxBytes) return body;
+
+		let dropped = 0;
+		let working = [...entries];
+		while (working.length > 0 && Buffer.byteLength(body, 'utf8') > maxBytes) {
+			working.shift();
+			dropped++;
+			body = working.map((e) => `- [${e.iterationNum}] ${e.text}`).join('\n');
+		}
+		return `[${dropped} earlier summaries truncated]\n${body}`;
+	}
+
+	private async commitBatch(
+		trigger: 'timer' | 'finalize',
+		config: LoopConfig
+	): Promise<void> {
+		if (!existsSync(path.join(this.projectRoot, '.git'))) return;
+		try {
+			const gitAdapter = new GitAdapter(this.projectRoot);
+			const progressFile = config.progressFile;
+			const progressDir = path.dirname(progressFile);
+			const baseName = path.basename(progressFile).replace(/\.txt$/, '');
+
+			const excludes = [
+				progressFile,
+				path.join(progressDir, `${baseName}.iter-*.txt`),
+				path.join(progressDir, `${baseName}.totals.txt`)
+			].map((p) => path.relative(this.projectRoot, p).replace(/\\/g, '/'));
+
+			await gitAdapter.stageAllWithExcludes(excludes);
+
+			if (!(await gitAdapter.hasStagedChanges())) return;
+
+			const body = this.truncateForCommit(this.pendingSummaries);
+			const preset =
+				typeof config.prompt === 'string' ? config.prompt : 'default';
+			const prefix = LoopService.PRESET_COMMIT_PREFIX[preset] ?? 'feat';
+			const tag = config.tag ? ` [tag ${config.tag}]` : '';
+			const subject = `${prefix}(loop): ${this.pendingSummaries.length} iterations${tag}`;
+			const message = body ? `${subject}\n\n${body}` : subject;
+
+			let sha: string | undefined;
+			await gitAdapter.createCommit(message, {});
+			const last = await gitAdapter.getLastCommit();
+			sha = typeof last?.hash === 'string' ? last.hash.slice(0, 7) : undefined;
+
+			await config.callbacks?.onBatchCommit?.({
+				sha,
+				trigger,
+				summaryCount: this.pendingSummaries.length,
+				bodyBytes: Buffer.byteLength(body, 'utf8')
+			});
+		} catch (err) {
+			this.logger.warn('commitBatch: git operation failed', err);
+		}
+	}
+
 	private formatJsonBlockForFile(value: unknown): string {
 		let json: string;
 		try {
@@ -529,7 +701,7 @@ export class LoopService {
 			writeToolCalls?: number;
 			nonWriteToolCalls?: number;
 			estimatedContext?: number;
-			percentOf1M?: number;
+			contextPercent?: number;
 			modelId?: string;
 		}
 	): string {
@@ -580,8 +752,8 @@ export class LoopService {
 
 		if (summary.estimatedContext !== undefined) {
 			const pct =
-				summary.percentOf1M !== undefined
-					? ` (${summary.percentOf1M.toFixed(1)}% of 1M)`
+				summary.contextPercent !== undefined
+					? ` (${summary.contextPercent.toFixed(1)}% of ctx)`
 					: '';
 			lines.push(
 				`- Context: ${summary.estimatedContext.toLocaleString('en-US')} tokens${pct}`
@@ -638,7 +810,7 @@ export class LoopService {
 
 	private async resolvePrompt(prompt: string): Promise<string> {
 		if (this.isPreset(prompt)) {
-			return PRESETS[prompt]({ projectRoot: this.projectRoot });
+			return PRESETS[prompt].initial({ projectRoot: this.projectRoot });
 		}
 		const content = await readFile(prompt, 'utf-8');
 		if (!content.trim()) {
@@ -764,12 +936,12 @@ export class LoopService {
 			nonWriteToolCalls: number;
 		},
 		estimatedContext?: number,
-		percentOf1M?: number
+		contextPercent?: number
 	): string {
 		const toolPart = `tools: ${classification.totalToolCalls.toLocaleString('en-US')} (TM:${classification.taskMasterToolCalls} W:${classification.writeToolCalls} NW:${classification.nonWriteToolCalls})`;
 		const ctxPart =
 			estimatedContext !== undefined
-				? ` | ctx: ${estimatedContext.toLocaleString('en-US')} tokens${percentOf1M !== undefined ? ` (${percentOf1M.toFixed(1)}% of 1M)` : ''}`
+				? ` | ctx: ${estimatedContext.toLocaleString('en-US')} tokens${contextPercent !== undefined ? ` (${contextPercent.toFixed(1)}% of ctx)` : ''}`
 				: '';
 		return `- Iter ${iterationNum}: ${status} | ${toolPart}${ctxPart}`;
 	}
@@ -777,7 +949,7 @@ export class LoopService {
 	private parseCompletion(
 		output: string,
 		exitCode: number
-	): { status: LoopIteration['status']; message?: string } {
+	): { status: LoopIteration['status']; message?: string; summary?: string } {
 		const completeMatch = output.match(
 			/<loop-complete>([^<]*)<\/loop-complete>/i
 		);
@@ -788,9 +960,17 @@ export class LoopService {
 		if (blockedMatch)
 			return { status: 'blocked', message: blockedMatch[1].trim() };
 
+		// Extract optional summary; truncate to 200 chars
+		let summary: string | undefined;
+		const summaryMatch = output.match(/<loop-summary>([^<]*)<\/loop-summary>/i);
+		if (summaryMatch) {
+			const raw = summaryMatch[1].trim();
+			summary = raw.length <= 200 ? raw : `${raw.slice(0, 200)}… [truncated]`;
+		}
+
 		if (exitCode !== 0)
-			return { status: 'error', message: `Exit code ${exitCode}` };
-		return { status: 'success' };
+			return { status: 'error', message: `Exit code ${exitCode}`, summary };
+		return { status: 'success', summary };
 	}
 
 	private async executeIteration(
@@ -802,7 +982,9 @@ export class LoopService {
 		callbacks?: LoopOutputCallbacks,
 		progressFile?: string,
 		sessionPersistence = false,
-		totalIterations = 1
+		totalIterations = 1,
+		sessionId?: string,
+		isResume?: boolean
 	): Promise<LoopIteration> {
 		const startTime = Date.now();
 		const command = sandbox ? 'docker' : 'claude';
@@ -819,7 +1001,9 @@ export class LoopService {
 				callbacks,
 				progressFile,
 				sessionPersistence,
-				totalIterations
+				totalIterations,
+				sessionId,
+				isResume
 			);
 		}
 
@@ -827,7 +1011,9 @@ export class LoopService {
 			prompt,
 			sandbox,
 			false,
-			sessionPersistence
+			sessionPersistence,
+			sessionId,
+			isResume
 		);
 		const result = spawnSync(command, args, {
 			cwd: this.projectRoot,
@@ -857,12 +1043,16 @@ export class LoopService {
 			return this.createErrorIteration(iterationNum, startTime, errorMsg);
 		}
 
-		const { status, message } = this.parseCompletion(output, result.status);
+		const { status, message, summary } = this.parseCompletion(
+			output,
+			result.status
+		);
 		return {
 			iteration: iterationNum,
 			status,
 			duration: Date.now() - startTime,
 			message,
+			summary,
 			...(includeOutput && { output })
 		};
 	}
@@ -895,13 +1085,17 @@ export class LoopService {
 		callbacks?: LoopOutputCallbacks,
 		progressFile?: string,
 		sessionPersistence = false,
-		totalIterations = 1
+		totalIterations = 1,
+		sessionId?: string,
+		isResume?: boolean
 	): Promise<LoopIteration> {
 		const args = this.buildCommandArgs(
 			prompt,
 			sandbox,
 			true,
-			sessionPersistence
+			sessionPersistence,
+			sessionId,
+			isResume
 		);
 		// Track tool-call counts for the trace-mode iteration summary
 		const toolCallCounts = new Map<string, number>();
@@ -1085,9 +1279,9 @@ export class LoopService {
 					(tokenUsage?.inputTokens ?? 0) +
 					(tokenUsage?.cacheCreationInputTokens ?? 0) +
 					(tokenUsage?.cacheReadInputTokens ?? 0);
-				const percentOf1M =
-					modelId && /opus/i.test(modelId) && tokenUsage != null
-						? (estimatedContext / 1_000_000) * 100
+				const contextPercent =
+					tokenUsage != null
+						? (estimatedContext / contextWindowFor(modelId)) * 100
 						: undefined;
 
 				// Trace mode: emit aggregated tool-call summary, final result, and token usage
@@ -1101,7 +1295,7 @@ export class LoopService {
 						writeToolCalls: classification.writeToolCalls,
 						nonWriteToolCalls: classification.nonWriteToolCalls,
 						estimatedContext,
-						...(percentOf1M !== undefined && { percentOf1M }),
+						...(contextPercent !== undefined && { contextPercent }),
 						...(modelId !== undefined && { modelId })
 					});
 				}
@@ -1121,7 +1315,7 @@ export class LoopService {
 							...(tokenUsage && { tokenUsage }),
 							...classification,
 							estimatedContext,
-							...(percentOf1M !== undefined && { percentOf1M }),
+							...(contextPercent !== undefined && { contextPercent }),
 							...(modelId !== undefined && { modelId })
 						})
 					});
@@ -1147,7 +1341,7 @@ export class LoopService {
 							iterStatus,
 							classification,
 							estimatedContext,
-							percentOf1M
+							contextPercent
 						) + '\n',
 						'utf-8'
 					).catch((err: unknown) => {
@@ -1159,20 +1353,25 @@ export class LoopService {
 						...classification,
 						tokenUsage: tokenUsage ?? undefined,
 						estimatedContext,
-						...(percentOf1M !== undefined && { percentOf1M }),
+						...(contextPercent !== undefined && { contextPercent }),
 						...(modelId !== undefined && { modelId }),
 						status: iterStatus,
 						duration: Date.now() - startTime
 					});
 				}
 
-				const { status, message } = this.parseCompletion(finalResult, exitCode);
+				const { status, message, summary } = this.parseCompletion(
+					finalResult,
+					exitCode
+				);
 				resolveOnce({
 					iteration: iterationNum,
 					status,
 					duration: Date.now() - startTime,
 					message,
-					...(includeOutput && { output: finalResult })
+					summary,
+					...(includeOutput && { output: finalResult }),
+					...(contextPercent !== undefined && { contextPercent })
 				});
 			});
 		});
@@ -1235,12 +1434,16 @@ export class LoopService {
 		prompt: string,
 		sandbox: boolean,
 		verbose: boolean,
-		sessionPersistence: boolean
+		sessionPersistence: boolean,
+		sessionId?: string,
+		isResume?: boolean
 	): string[] {
 		if (sandbox) {
 			const args = ['sandbox', 'run', 'claude', '-p', prompt];
 			if (!sessionPersistence) {
 				args.push('--no-session-persistence');
+			} else if (sessionId) {
+				args.push(isResume ? '--resume' : '--session-id', sessionId);
 			}
 			return args;
 		}
@@ -1252,6 +1455,8 @@ export class LoopService {
 		}
 		if (!sessionPersistence) {
 			args.push('--no-session-persistence');
+		} else if (sessionId) {
+			args.push(isResume ? '--resume' : '--session-id', sessionId);
 		}
 		return args;
 	}

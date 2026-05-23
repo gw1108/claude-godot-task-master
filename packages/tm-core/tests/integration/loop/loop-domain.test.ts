@@ -92,7 +92,9 @@ describe('LoopDomain Integration', () => {
 			for (const preset of PRESET_NAMES) {
 				const fromDomain = await domain.resolvePrompt(preset);
 				// Call getPreset with the same projectRoot the domain was configured with
-				const fromUtility = getPreset(preset)({ projectRoot: '/test/project' });
+				const fromUtility = getPreset(preset).initial({
+					projectRoot: '/test/project'
+				});
 				expect(fromDomain).toBe(fromUtility);
 			}
 		});

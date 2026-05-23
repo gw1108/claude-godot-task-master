@@ -7,12 +7,13 @@
 export { LoopDomain } from './loop-domain.js';
 
 // Service - for advanced usage
-export { LoopService } from './services/loop.service.js';
+export { LoopService, contextWindowFor } from './services/loop.service.js';
 export type { LoopServiceOptions } from './services/loop.service.js';
 
 // Types
 export type {
 	LoopPreset,
+	LoopPresetDef,
 	PresetCtx,
 	LoopConfig,
 	LoopIteration,

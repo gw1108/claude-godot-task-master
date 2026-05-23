@@ -32,7 +32,7 @@ describe('Preset Accessibility Integration', () => {
 			expect(PRESET_NAMES).toHaveLength(5);
 
 			for (const presetName of PRESET_NAMES) {
-				const content = getPreset(presetName)(TEST_CTX);
+				const content = getPreset(presetName).initial(TEST_CTX);
 				expect(content).toBeTruthy();
 				expect(typeof content).toBe('string');
 				expect(content.length).toBeGreaterThan(100);
@@ -72,20 +72,20 @@ describe('Preset Accessibility Integration', () => {
 	describe('Preset Content Structure', () => {
 		it('all presets should contain loop-complete marker', () => {
 			for (const presetName of PRESET_NAMES) {
-				const content = getPreset(presetName)(TEST_CTX);
+				const content = getPreset(presetName).initial(TEST_CTX);
 				expect(content).toContain('<loop-complete>');
 			}
 		});
 
 		it('default preset should contain both complete and blocked markers', () => {
-			const content = getPreset('default')(TEST_CTX);
+			const content = getPreset('default').initial(TEST_CTX);
 			expect(content).toContain('<loop-complete>');
 			expect(content).toContain('<loop-blocked>');
 		});
 
 		it('all presets should reference progress file', () => {
 			for (const presetName of PRESET_NAMES) {
-				const content = getPreset(presetName)(TEST_CTX);
+				const content = getPreset(presetName).initial(TEST_CTX);
 				// Default uses "progress file", others use "loop-progress"
 				expect(content).toMatch(/loop-progress|progress file/i);
 			}
@@ -93,7 +93,7 @@ describe('Preset Accessibility Integration', () => {
 
 		it('all presets should emphasize single-task constraint', () => {
 			for (const presetName of PRESET_NAMES) {
-				const content = getPreset(presetName)(TEST_CTX);
+				const content = getPreset(presetName).initial(TEST_CTX);
 				// All presets should mention completing ONE task/test/fix per session
 				expect(content).toMatch(/\bONE\b/i);
 			}
@@ -103,7 +103,7 @@ describe('Preset Accessibility Integration', () => {
 			const completionReasons = new Set<string>();
 
 			for (const presetName of PRESET_NAMES) {
-				const content = getPreset(presetName)(TEST_CTX);
+				const content = getPreset(presetName).initial(TEST_CTX);
 				// Extract the completion reason from <loop-complete>REASON</loop-complete>
 				const match = content.match(/<loop-complete>([^<]+)<\/loop-complete>/);
 				expect(match).toBeTruthy();

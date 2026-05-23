@@ -12,7 +12,11 @@ import {
 	vi,
 	type MockInstance
 } from 'vitest';
-import { LoopService, type LoopServiceOptions } from './loop.service.js';
+import {
+	LoopService,
+	contextWindowFor,
+	type LoopServiceOptions
+} from './loop.service.js';
 import * as childProcess from 'node:child_process';
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
@@ -1341,7 +1345,7 @@ describe('LoopService', () => {
 						typeof c === 'string' && (c as string).includes('- Iter 1:')
 				);
 				expect(compactCall).toBeDefined();
-				expect(compactCall![1] as string).toContain('% of 1M');
+				expect(compactCall![1] as string).toContain('% of ctx');
 			});
 
 			it('does not write sibling or totals files in none traceLevel mode', async () => {
@@ -1445,7 +1449,7 @@ describe('LoopService', () => {
 		let parseCompletion: (
 			output: string,
 			exitCode: number
-		) => { status: string; message?: string };
+		) => { status: string; message?: string; summary?: string };
 
 		beforeEach(() => {
 			service = new LoopService(defaultOptions);
@@ -1494,6 +1498,35 @@ describe('LoopService', () => {
 				0
 			);
 			expect(result.message).toBe('trimmed');
+		});
+
+		it('extracts <loop-summary> text', () => {
+			const result = parseCompletion(
+				'<loop-summary>did stuff</loop-summary>',
+				0
+			);
+			expect(result.summary).toBe('did stuff');
+			expect(result.status).toBe('success');
+		});
+
+		it('extracts <loop-summary> case-insensitively and trims whitespace', () => {
+			const result = parseCompletion(
+				'<LOOP-SUMMARY>  trimmed  </LOOP-SUMMARY>',
+				0
+			);
+			expect(result.summary).toBe('trimmed');
+		});
+
+		it('truncates summary text exceeding 200 chars', () => {
+			const long = 'x'.repeat(210);
+			const result = parseCompletion(`<loop-summary>${long}</loop-summary>`, 0);
+			expect(result.summary).toMatch(/… \[truncated\]$/);
+			expect(result.summary!.length).toBeLessThanOrEqual(215);
+		});
+
+		it('returns undefined summary when marker is absent', () => {
+			const result = parseCompletion('some output', 0);
+			expect(result.summary).toBeUndefined();
 		});
 	});
 
@@ -1832,6 +1865,169 @@ describe('LoopService', () => {
 			});
 
 			expect(service.isRunning).toBe(false);
+		});
+	});
+
+	describe('session-id and resume flags in buildCommandArgs', () => {
+		const UUID_RE =
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		const minimalConfig = {
+			prompt: 'linting',
+			iterations: 1,
+			sleepSeconds: 0,
+			progressFile: '/test/progress.txt'
+		};
+
+		let service: LoopService;
+		beforeEach(() => {
+			service = new LoopService(defaultOptions);
+		});
+
+		it('emits --session-id on iteration 1 when sessionPersistence=true (non-sandbox)', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				sandbox: false,
+				sessionPersistence: true
+			});
+
+			const claudeCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'claude'
+			);
+			expect(claudeCalls.length).toBeGreaterThan(0);
+			const args: string[] = claudeCalls[0][1];
+			const idx = args.indexOf('--session-id');
+			expect(idx).toBeGreaterThan(-1);
+			expect(UUID_RE.test(args[idx + 1])).toBe(true);
+			expect(args).not.toContain('--resume');
+			expect(args).not.toContain('--no-session-persistence');
+		});
+
+		it('emits --resume on iteration 2 when sessionPersistence=true (non-sandbox)', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				iterations: 2,
+				sandbox: false,
+				sessionPersistence: true
+			});
+
+			const claudeCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'claude'
+			);
+			expect(claudeCalls.length).toBe(2);
+
+			// Iteration 1: --session-id <uuid>
+			const args1: string[] = claudeCalls[0][1];
+			const sidIdx = args1.indexOf('--session-id');
+			expect(sidIdx).toBeGreaterThan(-1);
+			const sessionId = args1[sidIdx + 1];
+			expect(UUID_RE.test(sessionId)).toBe(true);
+
+			// Iteration 2: --resume <same uuid>
+			const args2: string[] = claudeCalls[1][1];
+			expect(args2).toContain('--resume');
+			const resumeIdx = args2.indexOf('--resume');
+			expect(args2[resumeIdx + 1]).toBe(sessionId);
+			expect(args2).not.toContain('--session-id');
+		});
+
+		it('emits --session-id on sandbox iteration 1 when sessionPersistence=true', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				sandbox: true,
+				sessionPersistence: true
+			});
+
+			const dockerCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'docker'
+			);
+			expect(dockerCalls.length).toBeGreaterThan(0);
+			const args: string[] = dockerCalls[0][1];
+			const idx = args.indexOf('--session-id');
+			expect(idx).toBeGreaterThan(-1);
+			expect(UUID_RE.test(args[idx + 1])).toBe(true);
+		});
+
+		it('never emits both --resume and --no-session-persistence', async () => {
+			mockSpawnSync.mockReturnValue({
+				stdout: '',
+				stderr: '',
+				status: 0,
+				signal: null,
+				pid: 123,
+				output: []
+			});
+
+			await service.run({
+				...minimalConfig,
+				iterations: 2,
+				sandbox: false,
+				sessionPersistence: true
+			});
+
+			const claudeCalls = mockSpawnSync.mock.calls.filter(
+				([cmd]) => cmd === 'claude'
+			);
+			for (const [, args] of claudeCalls) {
+				expect(
+					(args as string[]).filter(
+						(a) => a === '--resume' || a === '--no-session-persistence'
+					)
+				).not.toEqual(
+					expect.arrayContaining(['--resume', '--no-session-persistence'])
+				);
+			}
+		});
+	});
+
+	describe('contextWindowFor (context window lookup)', () => {
+		it('returns 1_000_000 for opus models', () => {
+			expect(contextWindowFor('claude-opus-4-5')).toBe(1_000_000);
+			expect(contextWindowFor('claude-opus-4-7')).toBe(1_000_000);
+		});
+
+		it('returns 200_000 for sonnet models', () => {
+			expect(contextWindowFor('claude-sonnet-4-5')).toBe(200_000);
+			expect(contextWindowFor('claude-sonnet-4-6')).toBe(200_000);
+		});
+
+		it('returns 200_000 for haiku models', () => {
+			expect(contextWindowFor('claude-haiku-4-5')).toBe(200_000);
+		});
+
+		it('returns 1_000_000 for unknown models (safe fallback)', () => {
+			expect(contextWindowFor('gpt-4o')).toBe(1_000_000);
+			expect(contextWindowFor('unknown-model')).toBe(1_000_000);
+		});
+
+		it('returns 1_000_000 when modelId is undefined', () => {
+			expect(contextWindowFor(undefined)).toBe(1_000_000);
 		});
 	});
 });

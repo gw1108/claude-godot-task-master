@@ -115,7 +115,7 @@ export class LoopDomain {
 		readFile?: (path: string) => Promise<string>
 	): Promise<string> {
 		if (checkIsPreset(prompt)) {
-			return getPreset(prompt)({ projectRoot: this.projectRoot });
+			return getPreset(prompt).initial({ projectRoot: this.projectRoot });
 		}
 		if (!readFile) {
 			throw new Error(
@@ -194,6 +194,8 @@ export class LoopDomain {
 			includeOutput: partial.includeOutput ?? false,
 			traceLevel: partial.traceLevel ?? 'none',
 			sessionPersistence: partial.sessionPersistence ?? false,
+			commitWindowMinutes: partial.commitWindowMinutes ?? 20,
+			batchCommit: partial.batchCommit ?? true,
 			brief: partial.brief,
 			callbacks: partial.callbacks
 		};

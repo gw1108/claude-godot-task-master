@@ -29,6 +29,8 @@ export interface LoopCommandOptions {
 	output?: boolean;
 	tracelevel?: LoopTraceLevel;
 	sessionPersistence?: boolean;
+	commitWindowMinutes?: number;
+	batchCommit?: boolean;
 }
 
 function parseSessionPersistence(value: string): boolean {
@@ -83,6 +85,12 @@ export class LoopCommand extends Command {
 					.argParser(parseSessionPersistence)
 					.default(false)
 			)
+			.option(
+				'--commit-window-minutes <minutes>',
+				'minutes between batched git commits (default: 20)',
+				parseFloat
+			)
+			.option('--no-batch-commit', 'disable batched git commits entirely')
 			.action((options: LoopCommandOptions) => this.execute(options));
 	}
 
@@ -158,6 +166,8 @@ export class LoopCommand extends Command {
 				includeOutput: options.output ?? true,
 				traceLevel,
 				sessionPersistence: options.sessionPersistence ?? false,
+				commitWindowMinutes: options.commitWindowMinutes,
+				batchCommit: options.batchCommit,
 				brief: briefName,
 				callbacks: this.createOutputCallbacks()
 			};
@@ -237,6 +247,13 @@ export class LoopCommand extends Command {
 						`  Iteration ${iteration.iteration} completed: ${iteration.status}`
 					)
 				);
+			},
+			onBatchCommit: ({ sha, trigger, summaryCount, bodyBytes }) => {
+				const shaLabel = sha ? ` ${sha}` : '';
+				const kb = (bodyBytes / 1024).toFixed(1);
+				console.log(
+					`[loop] Batched commit${shaLabel} (${summaryCount} summaries, ${kb} KB) [${trigger}]`
+				);
 			}
 		};
 
@@ -252,6 +269,9 @@ export class LoopCommand extends Command {
 		console.log(`Final status: ${this.formatStatus(result.finalStatus)}`);
 		if (typeof result.totalDuration === 'number') {
 			console.log(`Total time: ${this.formatDuration(result.totalDuration)}`);
+		}
+		if (result.sessionId) {
+			console.log(`Session ID: ${result.sessionId}`);
 		}
 		if (result.errorMessage) {
 			console.log(chalk.red(`Error: ${result.errorMessage}`));

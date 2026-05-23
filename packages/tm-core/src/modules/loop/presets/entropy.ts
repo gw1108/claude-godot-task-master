@@ -1,4 +1,4 @@
-import type { PresetCtx } from '../types.js';
+import type { LoopPresetDef, PresetCtx } from '../types.js';
 
 /**
  * @fileoverview Entropy (Code Smells) preset for loop module
@@ -26,7 +26,7 @@ Find code smells and clean them up. ONE cleanup per session.
    - Smells in critical paths (authentication, payments, etc.)
 3. Refactor with minimal changes - don't over-engineer
 4. Run tests to ensure behavior is preserved
-5. Commit with message: \`refactor(<file>): <describe the cleanup>\`
+5. Emit <loop-summary><file>: <one-line description of cleanup done></loop-summary>
 6. Append to progress file: what was cleaned, smell type
 
 ## Important
@@ -40,4 +40,8 @@ Find code smells and clean them up. ONE cleanup per session.
 - If no significant smells remain, output: <loop-complete>LOW_ENTROPY</loop-complete>
 `;
 
-export const ENTROPY_PRESET = (_ctx: PresetCtx): string => ENTROPY_PRESET_TEXT;
+export const ENTROPY_PRESET: LoopPresetDef = {
+	initial: (_ctx: PresetCtx): string => ENTROPY_PRESET_TEXT,
+	continuation: (_ctx: PresetCtx): string =>
+		`Continue reducing code entropy. Scan for the next code smell (long functions, deep nesting, large files, magic numbers, complex conditionals, god classes), refactor it minimally, run tests, emit <loop-summary><file>: <one-line description of cleanup done></loop-summary>, and emit <loop-complete>LOW_ENTROPY</loop-complete> when done.`
+};
