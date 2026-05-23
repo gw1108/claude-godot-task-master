@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import chalk from 'chalk';
 import {
 	STREAMING_ERROR_CODES,
@@ -64,6 +66,38 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 		// Read PRD content and build prompts
 		const prdContent = readPrdContent(config.prdPath);
 		const prompts = await buildPrompts(config, prdContent, nextId);
+
+		if (config.traceLevel === 'trace') {
+			const dumpDir = path.join(config.projectRoot, '.taskmaster', 'reports');
+			const dumpPath = path.join(dumpDir, 'parse-prd-prompt.md');
+			const meta = prompts.metadata ?? {};
+			const content = [
+				'# parse-prd Prompt Trace',
+				'',
+				'## Metadata',
+				`- **timestamp:** ${new Date().toISOString()}`,
+				`- **research:** ${Boolean(config.research)}`,
+				`- **append:** ${Boolean(config.append)}`,
+				`- **nextId:** ${nextId}`,
+				`- **variant:** ${meta.variant ?? 'default'}`,
+				'',
+				'## System Prompt',
+				'',
+				'```',
+				prompts.systemPrompt,
+				'```',
+				'',
+				'## User Prompt',
+				'',
+				'```',
+				prompts.userPrompt,
+				'```',
+				''
+			].join('\n');
+			await mkdir(dumpDir, { recursive: true });
+			await writeFile(dumpPath, content, 'utf-8');
+			logger.report(`[parse-prd] Prompt trace written to ${dumpPath}`);
+		}
 
 		// Call the appropriate service handler
 		const serviceResult = await serviceHandler(

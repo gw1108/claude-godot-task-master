@@ -42,7 +42,8 @@ export async function parsePRDDirect(args, log, context = {}) {
 		append,
 		research,
 		projectRoot,
-		tag
+		tag,
+		tracelevel
 	} = args;
 
 	// Create the standard logger wrapper
@@ -166,7 +167,8 @@ export async function parsePRDDirect(args, log, context = {}) {
 				research,
 				reportProgress,
 				commandName: 'parse-prd',
-				outputType: 'mcp'
+				outputType: 'mcp',
+				traceLevel: tracelevel ?? 'none'
 			},
 			'json'
 		);

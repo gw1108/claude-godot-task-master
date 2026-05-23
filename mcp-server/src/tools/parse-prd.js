@@ -115,6 +115,14 @@ export function registerParsePRDTool(server) {
 				.default(5)
 				.describe(
 					'Complexity score threshold (1-10) to recommend expansion. Only used when analyzeComplexity is true.'
+				),
+			tracelevel: z
+				.enum(['none', 'verbose', 'trace'])
+				.optional()
+				.default('none')
+				.describe(
+					"Prompt trace verbosity. 'trace' writes the assembled system+user prompt to " +
+						'.taskmaster/reports/parse-prd-prompt.md before task generation.'
 				)
 		}),
 		annotations: {

@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import boxen from 'boxen';
 import chalk from 'chalk';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import inquirer from 'inquirer';
 
 // Import command registry and utilities from @tm/cli
@@ -975,6 +975,14 @@ function registerCommands(programInstance) {
 			'Complexity score threshold for expansion recommendation (1-10)',
 			'5'
 		)
+		.addOption(
+			new Option(
+				'--tracelevel <level>',
+				'Prompt trace verbosity: none = off, verbose = no-op, trace = write prompt to .taskmaster/reports/parse-prd-prompt.md'
+			)
+				.choices(['none', 'verbose', 'trace'])
+				.default('none')
+		)
 		.action(async (file, options) => {
 			// Resolve PRD path: prioritize --input option, then positional argument
 			const prdPath = options.input || file;
@@ -1114,7 +1122,8 @@ function registerCommands(programInstance) {
 					force: useForce,
 					research: research,
 					projectRoot: taskMaster.getProjectRoot(),
-					tag: tag
+					tag: tag,
+					traceLevel: options.tracelevel ?? 'none'
 				});
 
 				if (autoAnalyze) {
