@@ -128,7 +128,7 @@ You are completing tasks from a Task Master backlog. Complete ONE task per sessi
 3. Implement the task, focusing on the smallest possible change
 4. Ensure quality:
    - Run tests if they exist
-   - Run type check if applicable
+   - Run type check
    - Verify the implementation works as expected
 5. Update the task status: `task-master set-status --id=<id> --status=done`
 6. Commit your work with a descriptive message referencing the task ID
@@ -194,7 +194,7 @@ Fix lint errors and type errors one by one. ONE fix per session.
 ## Process
 
 1. Run lint command (`pnpm lint`, `npm run lint`, `eslint .`, etc.)
-2. Run type check (`pnpm typecheck`, `tsc --noEmit`, etc.)
+2. Run type check
 3. Pick ONE error to fix - prioritize:
    - Type errors (breaks builds)
    - Security-related lint errors

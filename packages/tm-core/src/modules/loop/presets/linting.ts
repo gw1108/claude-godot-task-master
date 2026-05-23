@@ -9,8 +9,8 @@ Fix lint errors and type errors one by one. ONE fix per session.
 
 ## Process
 
-1. Run lint command (\`pnpm lint\`, \`npm run lint\`, \`eslint .\`, etc.)
-2. Run type check (\`pnpm typecheck\`, \`tsc --noEmit\`, etc.)
+1. Run lint command
+2. Run type check
 3. Pick ONE error to fix - prioritize:
    - Type errors (breaks builds)
    - Security-related lint errors

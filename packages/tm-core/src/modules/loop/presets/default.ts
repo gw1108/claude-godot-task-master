@@ -18,8 +18,8 @@ PROCESS:
 2. Call mcp__task-master-ai__get_task with { "id": "<task id>", "projectRoot": "${ctx.projectRoot}" } to read full task details.
 3. Implement following codebase patterns.
 4. Write tests alongside implementation.
-5. Run type check (e.g., \`npm run typecheck\`, \`tsc --noEmit\`).
-6. Run tests (e.g., \`npm test\`, \`npm run test\`).
+5. Run type check
+6. Run tests
 7. Call mcp__task-master-ai__set_task_status with { "id": "<task id>", "status": "done", "projectRoot": "${ctx.projectRoot}" } to mark complete.
 8. Emit <loop-summary>task <ID>: <one-line description of work done></loop-summary>
 9. Append super-concise notes to progress file: task ID, what was done. If there were any mistakes or false assumptions, append them as learnings.
