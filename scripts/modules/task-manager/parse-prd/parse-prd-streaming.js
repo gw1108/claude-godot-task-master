@@ -576,8 +576,7 @@ async function processWithGenerateObject(context, logger) {
 			...task,
 			dependencies: task.dependencies ?? [],
 			priority: task.priority ?? null,
-			details: task.details ?? null,
-			testStrategy: task.testStrategy ?? null
+			details: task.details ?? null
 		}));
 	}
 

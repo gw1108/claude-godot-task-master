@@ -2,6 +2,9 @@
 node_modules/
 jspm_packages/
 
+# Local Claude Code settings (machine-specific hooks, e.g. the Windows test guard)
+.claude/settings.local.json
+
 # Environment variables
 .env
 .env.local

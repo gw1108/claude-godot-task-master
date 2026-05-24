@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import chalk from 'chalk';
 import {
@@ -105,6 +105,37 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 			prompts,
 			config.numTasks
 		);
+
+		if (config.traceLevel === 'verbose' || config.traceLevel === 'trace') {
+			const dumpDir = path.join(config.projectRoot, '.taskmaster', 'reports');
+			const dumpPath = path.join(dumpDir, 'parse-prd-prompt.md');
+			const rawText = serviceResult.aiServiceResponse?.rawResponseText;
+			const responseBody =
+				rawText != null
+					? rawText
+					: JSON.stringify(
+							serviceResult.aiServiceResponse?.mainResult ??
+								serviceResult.parsedTasks,
+							null,
+							2
+						);
+			const responseContent = [
+				'',
+				'## LLM Response',
+				'',
+				'```json',
+				responseBody,
+				'```',
+				''
+			].join('\n');
+			await mkdir(dumpDir, { recursive: true });
+			if (config.traceLevel === 'trace') {
+				await appendFile(dumpPath, responseContent, 'utf-8');
+			} else {
+				await writeFile(dumpPath, responseContent, 'utf-8');
+			}
+			logger.report(`[parse-prd] Response trace written to ${dumpPath}`);
+		}
 
 		// Process tasks
 		const defaultPriority = getDefaultPriority(config.projectRoot) || 'medium';

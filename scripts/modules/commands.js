@@ -978,7 +978,7 @@ function registerCommands(programInstance) {
 		.addOption(
 			new Option(
 				'--tracelevel <level>',
-				'Prompt trace verbosity: none = off, verbose = no-op, trace = write prompt to .taskmaster/reports/parse-prd-prompt.md'
+				'Trace verbosity: none | verbose (dump LLM response) | trace (also dump prompt)'
 			)
 				.choices(['none', 'verbose', 'trace'])
 				.default('none')

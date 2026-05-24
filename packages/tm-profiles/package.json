@@ -9,7 +9,7 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"test": "vitest run",
+		"test": "node ../../scripts/vitest-timeout.mjs",
 		"test:unit": "vitest run '**/*.spec.ts'",
 		"test:integration": "vitest run '**/*.test.ts'",
 		"test:watch": "vitest",

@@ -18,7 +18,7 @@ export const prdSingleTaskSchema = z.object({
 	title: z.string().min(1),
 	description: z.string().min(1),
 	details: z.string(),
-	testStrategy: z.string(),
+	testStrategy: z.string().optional(),
 	priority: z.enum(TASK_PRIORITY_OPTIONS),
 	dependencies: z.array(z.number()),
 	status: z.string()

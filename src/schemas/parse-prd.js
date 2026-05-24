@@ -7,7 +7,6 @@ const PRDSingleTaskSchema = z
 		title: z.string().min(1),
 		description: z.string().min(1),
 		details: z.string().nullable(),
-		testStrategy: z.string().nullable(),
 		priority: z.enum(['high', 'medium', 'low']).nullable(),
 		dependencies: z.array(z.number().int().positive()).nullable(),
 		status: z.string().nullable()

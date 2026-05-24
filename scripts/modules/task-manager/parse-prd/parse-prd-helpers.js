@@ -155,7 +155,7 @@ export function processTasks(
 			title: task.title || '',
 			description: task.description || '',
 			details: task.details || '',
-			testStrategy: task.testStrategy || ''
+			...(task.testStrategy ? { testStrategy: task.testStrategy } : {})
 		};
 	});
 

@@ -121,8 +121,7 @@ export function registerParsePRDTool(server) {
 				.optional()
 				.default('none')
 				.describe(
-					"Prompt trace verbosity. 'trace' writes the assembled system+user prompt to " +
-						'.taskmaster/reports/parse-prd-prompt.md before task generation.'
+					'Trace verbosity: none | verbose (dump LLM response) | trace (also dump prompt)'
 				)
 		}),
 		annotations: {

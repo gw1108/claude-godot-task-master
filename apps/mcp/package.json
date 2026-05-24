@@ -14,7 +14,7 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check src",
 		"format": "biome format --write src",
-		"test": "vitest run",
+		"test": "node ../../scripts/vitest-timeout.mjs",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"test:unit": "vitest run '**/*.spec.ts'",

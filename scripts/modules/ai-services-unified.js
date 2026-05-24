@@ -740,12 +740,23 @@ async function _unifiedServiceRunner(serviceType, params) {
 			// Get tag information for the response
 			const tagInfo = _getTagInfo(effectiveProjectRoot);
 
+			let rawResponseText = null;
+			if (serviceType === 'generateText') {
+				rawResponseText = providerResponse.text ?? null;
+			} else if (serviceType === 'generateObject') {
+				rawResponseText =
+					providerResponse.rawResponse?.body ??
+					providerResponse.response?.body ??
+					null;
+			}
+
 			return {
 				mainResult: finalMainResult,
 				telemetryData: telemetryData,
 				tagInfo: tagInfo,
 				providerName: providerName,
-				modelId: modelId
+				modelId: modelId,
+				rawResponseText: rawResponseText
 			};
 		} catch (error) {
 			const cleanMessage = _extractErrorMessage(error);
