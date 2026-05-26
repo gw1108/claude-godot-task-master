@@ -12,6 +12,7 @@ import {
 	getPreset
 } from './presets/index.js';
 import { LoopService } from './services/loop.service.js';
+import { TasksDomain } from '../tasks/tasks-domain.js';
 import type { LoopConfig, LoopPreset, LoopResult } from './types.js';
 
 /**
@@ -22,9 +23,11 @@ export class LoopDomain {
 	private readonly logger = getLogger('LoopDomain');
 	private loopService: LoopService | null = null;
 	private readonly projectRoot: string;
+	private readonly configManager: ConfigManager;
 
 	constructor(configManager: ConfigManager) {
 		this.projectRoot = configManager.getProjectRoot();
+		this.configManager = configManager;
 	}
 
 	// ========== Sandbox Auth Operations ==========
@@ -69,7 +72,11 @@ export class LoopDomain {
 		}
 
 		const fullConfig = this.buildConfig(config);
-		this.loopService = new LoopService({ projectRoot: this.projectRoot });
+		const tasksDomain = new TasksDomain(this.configManager);
+		this.loopService = new LoopService({
+			projectRoot: this.projectRoot,
+			getNext: (tag) => tasksDomain.getNext(tag)
+		});
 		return this.loopService.run(fullConfig);
 	}
 

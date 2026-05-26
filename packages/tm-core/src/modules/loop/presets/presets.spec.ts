@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { PresetCtx } from '../types.js';
+import type { PresetCtx, PrefetchedTask } from '../types.js';
 import {
 	PRESETS,
 	PRESET_NAMES,
@@ -320,5 +320,56 @@ describe('continuation prompts', () => {
 	it('default continuation injects projectRoot', () => {
 		const result = DEFAULT_PRESET.continuation({ projectRoot: '/my/proj' });
 		expect(result).toContain('/my/proj');
+	});
+});
+
+describe('default preset prefetch behavior', () => {
+	const TASK: PrefetchedTask = {
+		id: '3',
+		title: 'Add login page',
+		priority: 'high',
+		dependencies: ['1', '2']
+	};
+
+	it('initial with nextTask injects pre-fetched task JSON block', () => {
+		const content = DEFAULT_PRESET.initial({
+			projectRoot: '/proj',
+			nextTask: TASK
+		});
+		expect(content).toContain('NEXT TASK (pre-fetched):');
+		expect(content).toContain('"id": "3"');
+		expect(content).toContain('"title": "Add login page"');
+		expect(content).not.toContain('next_task');
+	});
+
+	it('initial without nextTask shows fallback next_task instruction', () => {
+		const content = DEFAULT_PRESET.initial({ projectRoot: '/proj' });
+		expect(content).toContain('next_task');
+		expect(content).not.toContain('NEXT TASK (pre-fetched):');
+	});
+
+	it('initial with nextTask: null shows fallback next_task instruction', () => {
+		const content = DEFAULT_PRESET.initial({
+			projectRoot: '/proj',
+			nextTask: null
+		});
+		expect(content).toContain('next_task');
+		expect(content).not.toContain('NEXT TASK (pre-fetched):');
+	});
+
+	it('continuation with nextTask injects pre-fetched task JSON block', () => {
+		const content = DEFAULT_PRESET.continuation({
+			projectRoot: '/proj',
+			nextTask: TASK
+		});
+		expect(content).toContain('Your next task (pre-fetched):');
+		expect(content).toContain('"id": "3"');
+		expect(content).not.toContain('next_task');
+	});
+
+	it('continuation without nextTask shows fallback next_task instruction', () => {
+		const content = DEFAULT_PRESET.continuation({ projectRoot: '/proj' });
+		expect(content).toContain('next_task');
+		expect(content).not.toContain('Your next task (pre-fetched):');
 	});
 });

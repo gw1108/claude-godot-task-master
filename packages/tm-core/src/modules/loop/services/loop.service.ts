@@ -22,13 +22,18 @@ import type {
 	LoopResult,
 	LoopTokenUsage,
 	LoopTraceLevel,
-	TestPhaseResult
+	TestPhaseResult,
+	PrefetchedTask
 } from '../types.js';
+import { trimTask } from '../types.js';
+import type { Task } from '../../../common/types/index.js';
 import { makePostCommitTestPreset } from '../presets/post-commit-test.js';
 import { atLeast } from './trace-level.js';
 
 export interface LoopServiceOptions {
 	projectRoot: string;
+	/** Optional in-process next-task fetcher; enables per-iteration pre-fetch for 'default' preset. */
+	getNext?: (tag?: string) => Promise<Task | null>;
 }
 
 const MODEL_CONTEXT_WINDOW: Array<{ pattern: RegExp; tokens: number }> = [
@@ -68,6 +73,7 @@ type TestPhaseTelemetry = {
 
 export class LoopService {
 	private readonly projectRoot: string;
+	private readonly getNext?: (tag?: string) => Promise<Task | null>;
 	private readonly logger = getLogger('LoopService');
 	private _isRunning = false;
 	private _currentSessionId: string | undefined = undefined;
@@ -95,6 +101,7 @@ export class LoopService {
 
 	constructor(options: LoopServiceOptions) {
 		this.projectRoot = options.projectRoot;
+		this.getNext = options.getNext;
 	}
 
 	getProjectRoot(): string {
@@ -284,13 +291,39 @@ export class LoopService {
 			// Notify presentation layer of iteration start
 			config.callbacks?.onIterationStart?.(i, config.iterations);
 
+			// Pre-fetch next task for 'default' preset to eliminate MCP round-trips
+			let prefetchedTask: PrefetchedTask | null | undefined;
+			if (config.prompt === 'default' && this.getNext) {
+				try {
+					const next = await this.getNext(config.tag);
+					if (next === null) {
+						return this.finalize(
+							config,
+							iterations,
+							tasksCompleted,
+							'all_complete',
+							loopStart,
+							this._currentSessionId
+						);
+					}
+					prefetchedTask = trimTask(next);
+				} catch (err) {
+					config.callbacks?.onError?.(
+						`Pre-fetch next task failed: ${(err as Error).message ?? String(err)}`,
+						'warning'
+					);
+					// prefetchedTask stays undefined; preset falls back to its own next_task call
+				}
+			}
+
 			// Select initial vs continuation prompt based on session state
 			const isResume = !isFirstInSession;
 			let prompt: string;
 			if (isResume) {
 				if (this.isPreset(config.prompt)) {
 					prompt = getPreset(config.prompt as LoopPreset).continuation({
-						projectRoot: this.projectRoot
+						projectRoot: this.projectRoot,
+						nextTask: prefetchedTask
 					});
 				} else {
 					prompt = `Continue with your previous task. Pick up exactly where you left off, complete the next logical unit of work, and emit <loop-summary>...</loop-summary> when done.`;
@@ -298,7 +331,7 @@ export class LoopService {
 				// Wrap with context header for trace mode visibility
 				prompt = `${this.buildContextHeader(config, i)}\n\n${prompt}`;
 			} else {
-				prompt = await this.buildPrompt(config, i);
+				prompt = await this.buildPrompt(config, i, prefetchedTask);
 			}
 
 			// In trace mode, emit the full prompt sent to the LLM before invoking it.
@@ -901,9 +934,15 @@ export class LoopService {
 		return checkIsPreset(name);
 	}
 
-	private async resolvePrompt(prompt: string): Promise<string> {
+	private async resolvePrompt(
+		prompt: string,
+		nextTask?: PrefetchedTask | null
+	): Promise<string> {
 		if (this.isPreset(prompt)) {
-			return PRESETS[prompt].initial({ projectRoot: this.projectRoot });
+			return PRESETS[prompt].initial({
+				projectRoot: this.projectRoot,
+				nextTask
+			});
 		}
 		const content = await readFile(prompt, 'utf-8');
 		if (!content.trim()) {
@@ -920,9 +959,10 @@ export class LoopService {
 
 	private async buildPrompt(
 		config: LoopConfig,
-		iteration: number
+		iteration: number,
+		nextTask?: PrefetchedTask | null
 	): Promise<string> {
-		const basePrompt = await this.resolvePrompt(config.prompt);
+		const basePrompt = await this.resolvePrompt(config.prompt, nextTask);
 		return `${this.buildContextHeader(config, iteration)}\n\n${basePrompt}`;
 	}
 

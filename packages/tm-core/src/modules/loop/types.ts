@@ -2,6 +2,8 @@
  * @fileoverview Type definitions for the loop module
  */
 
+import type { Task } from '../../common/types/index.js';
+
 /**
  * Available preset loop prompts
  */
@@ -13,7 +15,41 @@ export type LoopPreset =
 	| 'entropy';
 
 /** Context passed to preset factory functions so projectRoot is injected at call time */
-export type PresetCtx = { projectRoot: string };
+export type PresetCtx = {
+	projectRoot: string;
+	nextTask?: PrefetchedTask | null;
+};
+
+/**
+ * Trimmed subset of Task used for pre-fetching in the default loop preset.
+ * Excludes subtasks[], metadata, and implementation-metadata to avoid prompt bloat.
+ */
+export interface PrefetchedTask {
+	id: string;
+	title: string;
+	description?: string;
+	details?: string;
+	priority?: string;
+	dependencies?: string[];
+	parentId?: string;
+}
+
+/** Trim a full Task down to the prompt-safe PrefetchedTask subset. */
+export function trimTask(task: Task): PrefetchedTask {
+	const result: PrefetchedTask = {
+		id: String(task.id),
+		title: task.title
+	};
+	if (task.description) result.description = task.description;
+	if (task.details) result.details = task.details;
+	if (task.priority) result.priority = task.priority;
+	if (Array.isArray(task.dependencies) && task.dependencies.length > 0) {
+		result.dependencies = task.dependencies.map(String);
+	}
+	if ((task as any).parentId != null)
+		result.parentId = String((task as any).parentId);
+	return result;
+}
 
 /** Shape of a loop preset — initial prompt for iter 1 and a short continuation for resume iters */
 export interface LoopPresetDef {
