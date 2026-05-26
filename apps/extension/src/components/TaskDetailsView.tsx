@@ -184,15 +184,6 @@ export const TaskDetailsView: React.FC<TaskDetailsViewProps> = ({
 						defaultExpanded={false}
 					/>
 
-					{/* Test Strategy */}
-					<DetailsSection
-						title="Test Strategy"
-						content={taskFileData.testStrategy}
-						error={taskFileDataError}
-						emptyMessage="No test strategy available"
-						defaultExpanded={false}
-					/>
-
 					{/* Subtasks */}
 					<SubtasksSection
 						currentTask={currentTask}

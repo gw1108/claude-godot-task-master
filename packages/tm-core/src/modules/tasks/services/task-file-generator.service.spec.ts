@@ -55,7 +55,6 @@ function createSampleTasks(): Task[] {
 			priority: 'high',
 			dependencies: [],
 			details: 'Implementation details for task 1',
-			testStrategy: 'Unit tests for task 1',
 			subtasks: []
 		},
 		{
@@ -66,7 +65,6 @@ function createSampleTasks(): Task[] {
 			priority: 'medium',
 			dependencies: ['1'],
 			details: 'Implementation details for task 2',
-			testStrategy: 'Integration tests for task 2',
 			subtasks: [
 				{
 					id: 1,
@@ -76,8 +74,7 @@ function createSampleTasks(): Task[] {
 					status: 'done',
 					priority: 'medium',
 					dependencies: [],
-					details: 'Subtask details',
-					testStrategy: ''
+					details: 'Subtask details'
 				},
 				{
 					id: 2,
@@ -87,8 +84,7 @@ function createSampleTasks(): Task[] {
 					status: 'pending',
 					priority: 'medium',
 					dependencies: ['1'],
-					details: '',
-					testStrategy: ''
+					details: ''
 				}
 			]
 		},
@@ -100,7 +96,6 @@ function createSampleTasks(): Task[] {
 			priority: 'low',
 			dependencies: ['1', '2'],
 			details: '',
-			testStrategy: '',
 			subtasks: []
 		}
 	];
@@ -167,8 +162,6 @@ describe('TaskFileGeneratorService', () => {
 			expect(task1Content).toContain('**Description:** Description for first task');
 			expect(task1Content).toContain('**Details:**');
 			expect(task1Content).toContain('Implementation details for task 1');
-			expect(task1Content).toContain('**Test Strategy:**');
-			expect(task1Content).toContain('Unit tests for task 1');
 		});
 
 		it('should include subtasks in task files', async () => {

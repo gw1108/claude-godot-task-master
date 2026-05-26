@@ -196,7 +196,6 @@ export class FileStorage implements IStorage {
 				priority: subtask.priority || parentTask.priority || 'medium',
 				dependencies: resolvedDependencies,
 				details: subtask.details || '',
-				testStrategy: subtask.testStrategy || '',
 				subtasks: [],
 				tags: parentTask.tags || [],
 				assignee: subtask.assignee || parentTask.assignee,

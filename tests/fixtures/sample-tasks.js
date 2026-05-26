@@ -18,8 +18,7 @@ export const sampleTasks = {
 			dependencies: [],
 			priority: 'high',
 			details:
-				'Create directory structure, initialize package.json, and install dependencies',
-			testStrategy: 'Verify all directories and files are created correctly'
+				'Create directory structure, initialize package.json, and install dependencies'
 		},
 		{
 			id: 2,
@@ -30,7 +29,6 @@ export const sampleTasks = {
 			priority: 'high',
 			details:
 				'Implement user authentication, data processing, and API endpoints',
-			testStrategy: 'Write unit tests for all core functions',
 			subtasks: [
 				{
 					id: 1,
@@ -56,7 +54,6 @@ export const sampleTasks = {
 			dependencies: [2],
 			priority: 'medium',
 			details: 'Design and implement React components for the user interface',
-			testStrategy: 'Test components with React Testing Library',
 			subtasks: [
 				{
 					id: 1,

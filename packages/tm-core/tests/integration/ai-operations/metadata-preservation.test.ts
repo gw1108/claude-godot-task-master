@@ -34,7 +34,6 @@ function createTask(id: string, overrides: Partial<Task> = {}): Task {
 		priority: 'medium',
 		dependencies: [],
 		details: '',
-		testStrategy: '',
 		subtasks: [],
 		...overrides
 	};
@@ -95,8 +94,7 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 			const aiGeneratedUpdate: Partial<Task> = {
 				title: 'AI Updated Title',
 				description: 'AI refined description with more detail',
-				details: 'AI generated implementation details',
-				testStrategy: 'AI suggested test approach'
+				details: 'AI generated implementation details'
 				// Note: NO metadata field - AI schemas don't include it
 			};
 
@@ -112,7 +110,6 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 			expect(loadedTasks[0].details).toBe(
 				'AI generated implementation details'
 			);
-			expect(loadedTasks[0].testStrategy).toBe('AI suggested test approach');
 			// Critical: metadata must be preserved
 			expect(loadedTasks[0].metadata).toEqual(originalMetadata);
 		});
@@ -161,9 +158,7 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 2. Implement JWT token generation
 3. Add refresh token logic
 4. Set up protected routes
-				`.trim(),
-				testStrategy:
-					'Unit tests for JWT functions, integration tests for auth flow'
+				`.trim()
 			});
 
 			const loadedTasks = await storage.loadTasks();
@@ -207,8 +202,7 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 					status: 'pending',
 					priority: 'medium',
 					dependencies: [],
-					details: 'Implementation details',
-					testStrategy: 'Test approach'
+					details: 'Implementation details'
 					// No metadata - AI doesn't generate it
 				},
 				{
@@ -219,8 +213,7 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 					status: 'pending',
 					priority: 'medium',
 					dependencies: ['1'],
-					details: 'More details',
-					testStrategy: 'More tests'
+					details: 'More details'
 				}
 			];
 
@@ -250,7 +243,6 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 							priority: 'medium',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							metadata: { subtaskMeta: 'subtask-value' }
 						}
 					]
@@ -286,7 +278,6 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 					priority: 'high',
 					dependencies: [],
 					details: 'Create src/, tests/, docs/ directories',
-					testStrategy: 'Verify directories exist',
 					subtasks: []
 					// No metadata - AI doesn't generate it
 				},
@@ -298,7 +289,6 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 					priority: 'high',
 					dependencies: ['1'],
 					details: 'Implement main modules',
-					testStrategy: 'Unit tests for each module',
 					subtasks: []
 				}
 			];
@@ -335,7 +325,6 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 							priority: 'medium',
 							dependencies: [],
 							details: 'Initial details',
-							testStrategy: '',
 							metadata: { importedFrom: 'jira', ticketId: 'JIRA-456' }
 						}
 					]
@@ -354,7 +343,6 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 				dependencies: [],
 				details:
 					'Initial details\n\n<info added on 2024-01-20T10:00:00Z>\nImplementation notes from AI\n</info added on 2024-01-20T10:00:00Z>',
-				testStrategy: 'AI suggested tests',
 				metadata: { importedFrom: 'jira', ticketId: 'JIRA-456' }
 			};
 
@@ -437,7 +425,6 @@ describe('AI Operation Metadata Preservation - Integration Tests', () => {
 				title: 'AI Generated Title',
 				description: 'AI Generated Description',
 				details: 'AI Generated Details',
-				testStrategy: 'AI Generated Test Strategy',
 				priority: 'high'
 			});
 

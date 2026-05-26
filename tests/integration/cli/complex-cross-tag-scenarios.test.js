@@ -46,7 +46,6 @@ describe('Complex Cross-Tag Scenarios', () => {
 						priority: 'high',
 						dependencies: [],
 						details: 'Create basic project structure',
-						testStrategy: 'Verify project structure exists',
 						subtasks: []
 					},
 					{
@@ -57,7 +56,6 @@ describe('Complex Cross-Tag Scenarios', () => {
 						priority: 'high',
 						dependencies: [1],
 						details: 'Create database tables and relationships',
-						testStrategy: 'Run database migrations',
 						subtasks: [
 							{
 								id: '2.1',
@@ -66,8 +64,7 @@ describe('Complex Cross-Tag Scenarios', () => {
 								status: 'pending',
 								priority: 'medium',
 								dependencies: [],
-								details: 'Design user table schema',
-								testStrategy: 'Test user creation'
+								details: 'Design user table schema'
 							},
 							{
 								id: '2.2',
@@ -76,8 +73,7 @@ describe('Complex Cross-Tag Scenarios', () => {
 								status: 'pending',
 								priority: 'medium',
 								dependencies: ['2.1'],
-								details: 'Design product table schema',
-								testStrategy: 'Test product creation'
+								details: 'Design product table schema'
 							}
 						]
 					},
@@ -89,7 +85,6 @@ describe('Complex Cross-Tag Scenarios', () => {
 						priority: 'high',
 						dependencies: [2],
 						details: 'Create API endpoints for CRUD operations',
-						testStrategy: 'Test API endpoints',
 						subtasks: []
 					},
 					{
@@ -100,7 +95,6 @@ describe('Complex Cross-Tag Scenarios', () => {
 						priority: 'medium',
 						dependencies: [3],
 						details: 'Create React components and pages',
-						testStrategy: 'Test UI components',
 						subtasks: []
 					},
 					{
@@ -111,7 +105,6 @@ describe('Complex Cross-Tag Scenarios', () => {
 						priority: 'medium',
 						dependencies: [4],
 						details: 'Write unit and integration tests',
-						testStrategy: 'Run test suite',
 						subtasks: []
 					}
 				],

@@ -46,13 +46,6 @@ const LoopSchema = z.object({
 		.optional()
 		.default(false)
 		.describe('Include claude stdout in the loop result. Default: false.'),
-	sessionPersistence: z
-		.boolean()
-		.optional()
-		.default(false)
-		.describe(
-			'Persist the claude session for each iteration. Default: false (appends --no-session-persistence to each claude call, preventing session history pollution).'
-		),
 	progressFile: z
 		.string()
 		.optional()
@@ -106,7 +99,6 @@ export function registerLoopTool(server: FastMCP) {
 					sandbox,
 					traceLevel,
 					includeOutput,
-					sessionPersistence,
 					progressFile,
 					tag,
 					commitWindowMinutes,
@@ -124,7 +116,6 @@ export function registerLoopTool(server: FastMCP) {
 						sandbox,
 						traceLevel,
 						includeOutput,
-						sessionPersistence,
 						progressFile,
 						tag,
 						commitWindowMinutes,

@@ -136,7 +136,6 @@ describe('updateTasks', () => {
 				description: 'Updated description',
 				dependencies: [],
 				priority: 'medium',
-				testStrategy: 'Unit test the updated functionality',
 				subtasks: []
 			},
 			{
@@ -147,7 +146,6 @@ describe('updateTasks', () => {
 				description: 'Updated description',
 				dependencies: [],
 				priority: 'medium',
-				testStrategy: 'Integration test the updated features',
 				subtasks: []
 			}
 		];
@@ -316,7 +314,6 @@ describe('updateTasks', () => {
 				description: 'Updated description',
 				dependencies: [],
 				priority: 'medium',
-				testStrategy: 'Test the updated functionality',
 				subtasks: []
 			}
 		];

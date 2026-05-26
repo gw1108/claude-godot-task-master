@@ -62,7 +62,6 @@ export interface ImportTask {
 		originalPriority?: string;
 		createdAt?: string;
 		updatedAt?: string;
-		testStrategy?: string;
 		[key: string]: unknown;
 	};
 }
@@ -568,14 +567,12 @@ export class ExportService {
 				priority: task.priority || 'medium',
 				dependencies: validDependencies,
 				details: task.details,
-				testStrategy: task.testStrategy,
 				complexity: task.complexity,
 				metadata: {
 					complexity: task.complexity,
 					originalId: task.id,
 					originalDescription: task.description,
-					originalDetails: task.details,
-					originalTestStrategy: task.testStrategy
+					originalDetails: task.details
 				}
 			});
 
@@ -602,14 +599,12 @@ export class ExportService {
 						priority: subtask.priority || 'medium',
 						dependencies: subtaskDependencies,
 						details: subtask.details,
-						testStrategy: subtask.testStrategy,
 						complexity: subtask.complexity,
 						metadata: {
 							complexity: subtask.complexity,
 							originalId: subtask.id,
 							originalDescription: subtask.description,
-							originalDetails: subtask.details,
-							originalTestStrategy: subtask.testStrategy
+							originalDetails: subtask.details
 						}
 					});
 				});
@@ -635,12 +630,6 @@ export class ExportService {
 		if (taskOrSubtask.details) {
 			sections.push('## Implementation Details\n');
 			sections.push(taskOrSubtask.details);
-		}
-
-		// Add test strategy section
-		if (taskOrSubtask.testStrategy) {
-			sections.push('## Test Strategy\n');
-			sections.push(taskOrSubtask.testStrategy);
 		}
 
 		// Join sections with double newlines for better markdown formatting
@@ -931,7 +920,6 @@ export class ExportService {
 				metadata: {
 					originalStatus: task.status,
 					originalPriority: task.priority,
-					testStrategy: task.testStrategy,
 					complexity: task.complexity
 				}
 			});
@@ -962,7 +950,6 @@ export class ExportService {
 						metadata: {
 							originalStatus: subtask.status,
 							originalPriority: subtask.priority,
-							testStrategy: subtask.testStrategy,
 							complexity: subtask.complexity
 						}
 					});

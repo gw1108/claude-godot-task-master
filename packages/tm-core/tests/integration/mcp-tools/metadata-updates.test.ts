@@ -243,7 +243,6 @@ describe('MCP Tool Metadata Updates - Integration Tests', () => {
 						priority: 'medium',
 						dependencies: [],
 						details: '',
-						testStrategy: '',
 						subtasks: [],
 						metadata: {
 							githubIssue: 42,
@@ -285,7 +284,6 @@ describe('MCP Tool Metadata Updates - Integration Tests', () => {
 						priority: 'medium',
 						dependencies: [],
 						details: '',
-						testStrategy: '',
 						subtasks: [
 							{
 								id: 1,
@@ -296,7 +294,6 @@ describe('MCP Tool Metadata Updates - Integration Tests', () => {
 								priority: 'medium',
 								dependencies: [],
 								details: '',
-								testStrategy: '',
 								metadata: {
 									linkedTicket: 'JIRA-456',
 									reviewed: true

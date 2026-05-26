@@ -25,7 +25,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -36,7 +35,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -81,7 +79,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -92,7 +89,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -103,7 +99,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -153,7 +148,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -164,7 +158,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -216,7 +209,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -250,7 +242,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -298,7 +289,6 @@ describe('ParallelExecutorService', () => {
 				priority: 'medium',
 				dependencies: [],
 				details: '',
-				testStrategy: '',
 				subtasks: []
 			};
 
@@ -358,7 +348,6 @@ describe('ParallelExecutorService', () => {
 				priority: 'medium',
 				dependencies: [],
 				details: '',
-				testStrategy: '',
 				subtasks: []
 			};
 
@@ -410,7 +399,6 @@ describe('ParallelExecutorService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];

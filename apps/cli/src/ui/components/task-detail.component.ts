@@ -180,23 +180,6 @@ export function displayImplementationDetails(details: string): void {
 }
 
 /**
- * Display test strategy in a box
- */
-export function displayTestStrategy(testStrategy: string): void {
-	const terminalWidth = process.stdout.columns * 0.95 || 100;
-	const formattedStrategy = renderContent(testStrategy);
-
-	console.log(
-		boxen(chalk.white.bold('Test Strategy:') + '\n\n' + formattedStrategy, {
-			padding: 1,
-			borderStyle: 'round',
-			borderColor: 'cyan',
-			width: terminalWidth
-		})
-	);
-}
-
-/**
  * Display subtasks in a table format
  */
 export function displaySubtasks(
@@ -590,12 +573,6 @@ export function displayTaskDetails(
 	if (task.details) {
 		console.log(); // Empty line for spacing
 		displayImplementationDetails(task.details);
-	}
-
-	// Display test strategy if available
-	if ('testStrategy' in task && task.testStrategy) {
-		console.log(); // Empty line for spacing
-		displayTestStrategy(task.testStrategy as string);
 	}
 
 	// Display AI implementation metadata (relevantFiles, codebasePatterns, etc.)

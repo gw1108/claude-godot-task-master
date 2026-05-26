@@ -192,7 +192,6 @@ const taskCreationSchema = z.object({
     title: z.string(),
     description: z.string(),
     details: z.string(),
-    testStrategy: z.string(),
     priority: z.enum(['high', 'medium', 'low']),
     dependencies: z.array(z.number()).optional()
   })

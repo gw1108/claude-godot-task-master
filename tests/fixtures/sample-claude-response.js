@@ -12,9 +12,7 @@ export const sampleClaudeResponse = {
 			dependencies: [],
 			priority: 'high',
 			details:
-				'Create the tasks.json file structure with support for task properties including ID, title, description, status, dependencies, priority, details, and test strategy. Implement file system operations for reading and writing task data.',
-			testStrategy:
-				'Verify tasks.json is created with the correct structure and that task data can be read from and written to the file.'
+				'Create the tasks.json file structure with support for task properties including ID, title, description, status, dependencies, priority, details, and test strategy. Implement file system operations for reading and writing task data.'
 		},
 		{
 			id: 2,
@@ -25,9 +23,7 @@ export const sampleClaudeResponse = {
 			dependencies: [1],
 			priority: 'high',
 			details:
-				'Set up Commander.js for handling CLI commands. Implement the basic command structure including help documentation. Create the foundational command parsing logic.',
-			testStrategy:
-				'Test each command to ensure it properly parses arguments and options. Verify help documentation is displayed correctly.'
+				'Set up Commander.js for handling CLI commands. Implement the basic command structure including help documentation. Create the foundational command parsing logic.'
 		},
 		{
 			id: 3,
@@ -38,9 +34,7 @@ export const sampleClaudeResponse = {
 			dependencies: [1],
 			priority: 'medium',
 			details:
-				'Implement functions for listing tasks, adding new tasks, updating task status, and removing tasks. Include support for filtering tasks by status and other properties.',
-			testStrategy:
-				'Create unit tests for each CRUD operation to verify they correctly modify the task data.'
+				'Implement functions for listing tasks, adding new tasks, updating task status, and removing tasks. Include support for filtering tasks by status and other properties.'
 		}
 	],
 	metadata: {

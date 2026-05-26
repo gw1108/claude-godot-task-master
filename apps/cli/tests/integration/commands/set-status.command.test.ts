@@ -86,8 +86,7 @@ describe('set-status command', () => {
 					description: 'A task we will mark as done',
 					status: 'pending',
 					priority: 'high',
-					details: 'Implementation details',
-					testStrategy: 'Test strategy'
+					details: 'Implementation details'
 				})
 			]
 		});
@@ -168,8 +167,7 @@ describe('set-status command', () => {
 					status: 'pending',
 					priority: 'high',
 					dependencies: ['2'],
-					details: 'Original details',
-					testStrategy: 'Original strategy'
+					details: 'Original details'
 				})
 			]
 		});
@@ -185,7 +183,6 @@ describe('set-status command', () => {
 		expect(task.priority).toBe('high');
 		expect(task.dependencies).toEqual(['2']);
 		expect(task.details).toBe('Original details');
-		expect(task.testStrategy).toBe('Original strategy');
 	});
 
 	it('should handle multiple tasks correctly', () => {

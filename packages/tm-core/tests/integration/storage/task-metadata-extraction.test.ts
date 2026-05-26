@@ -39,8 +39,6 @@ function createDatabaseTaskRow(overrides: Partial<TaskRow> = {}): TaskRow {
 		metadata: {
 			details:
 				'Implement secure JWT authentication with refresh tokens and role-based access control',
-			testStrategy:
-				'Unit tests for auth functions, integration tests for login flow, E2E tests for protected routes',
 			relevantFiles: [
 				{
 					path: 'src/auth/auth.service.ts',
@@ -127,7 +125,6 @@ function createDatabaseSubtaskRow(
 	const subtaskMetadata: Record<number, object> = {
 		1: {
 			details: 'Create the JWT strategy class that validates tokens',
-			testStrategy: 'Unit tests for token validation logic',
 			relevantFiles: [
 				{
 					path: 'src/auth/jwt.strategy.ts',
@@ -146,7 +143,6 @@ function createDatabaseSubtaskRow(
 		},
 		2: {
 			details: 'Create guards for protecting routes',
-			testStrategy: 'Integration tests with mock requests',
 			relevantFiles: [
 				{
 					path: 'src/auth/guards/auth.guard.ts',
@@ -160,7 +156,6 @@ function createDatabaseSubtaskRow(
 		},
 		3: {
 			details: 'Implement refresh token flow',
-			testStrategy: 'E2E tests for token refresh',
 			scopeBoundaries: {
 				included: 'Refresh token generation and validation',
 				excluded: 'Token revocation (future enhancement)'
@@ -213,9 +208,8 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 			expect(task.status).toBe('in-progress');
 			expect(task.priority).toBe('high');
 
-			// Verify details and testStrategy
+			// Verify details
 			expect(task.details).toContain('JWT authentication');
-			expect(task.testStrategy).toContain('Unit tests');
 
 			// Verify implementation metadata
 			expect(task.relevantFiles).toBeDefined();
@@ -306,7 +300,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 
 			expect(task.id).toBe('HAM-1');
 			expect(task.details).toBe('');
-			expect(task.testStrategy).toBe('');
 			expect(task.relevantFiles).toBeUndefined();
 			expect(task.codebasePatterns).toBeUndefined();
 			expect(task.category).toBeUndefined();
@@ -373,7 +366,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 				priority: 'high',
 				dependencies: [],
 				details: 'Detailed requirements',
-				testStrategy: 'Unit and integration tests',
 				subtasks: [],
 				relevantFiles: [
 					{ path: 'src/test.ts', description: 'Test file', action: 'modify' }
@@ -429,7 +421,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 				priority: 'medium',
 				dependencies: [],
 				details: '',
-				testStrategy: '',
 				subtasks: []
 			};
 
@@ -503,7 +494,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 				priority: 'high',
 				dependencies: [],
 				details: '',
-				testStrategy: '',
 				subtasks: [],
 				metadata: {
 					externalId: 'JIRA-123',
@@ -529,7 +519,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 				priority: 'medium',
 				dependencies: [],
 				details: '',
-				testStrategy: '',
 				metadata: { parentMeta: true },
 				subtasks: [
 					{
@@ -541,7 +530,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 						priority: 'medium',
 						dependencies: [],
 						details: '',
-						testStrategy: '',
 						metadata: { subtaskMeta: 'value1' }
 					}
 				]
@@ -565,7 +553,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 				priority: 'medium',
 				dependencies: [],
 				details: '',
-				testStrategy: '',
 				subtasks: [],
 				metadata: {}
 			};
@@ -585,7 +572,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 				priority: 'medium',
 				dependencies: [],
 				details: '',
-				testStrategy: '',
 				subtasks: [],
 				metadata: {
 					string: 'value',
@@ -621,7 +607,6 @@ describe('Task Metadata Extraction - Integration Tests', () => {
 				priority: 'medium',
 				dependencies: [],
 				details: 'Some details',
-				testStrategy: 'Unit tests',
 				subtasks: [],
 				// AI implementation metadata
 				relevantFiles: [

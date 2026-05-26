@@ -247,7 +247,6 @@ describe('list command', () => {
 							priority: 'high',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							subtasks: []
 						}
 					],
@@ -282,7 +281,6 @@ describe('list command', () => {
 							priority: 'high',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							subtasks: []
 						}
 					],
@@ -316,7 +314,6 @@ describe('list command', () => {
 							priority: 'high',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							subtasks: []
 						}
 					],
@@ -349,7 +346,6 @@ describe('list command', () => {
 							priority: 'high',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							subtasks: []
 						},
 						{
@@ -360,7 +356,6 @@ describe('list command', () => {
 							priority: 'high',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							subtasks: []
 						},
 						{
@@ -371,7 +366,6 @@ describe('list command', () => {
 							priority: 'high',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							subtasks: []
 						}
 					],

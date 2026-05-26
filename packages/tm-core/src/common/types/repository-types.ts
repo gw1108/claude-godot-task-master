@@ -30,7 +30,6 @@ export interface DependencyWithDisplayId {
  */
 export interface TaskMetadata {
 	details?: string;
-	testStrategy?: string;
 	[key: string]: unknown; // Allow additional fields but be explicit
 }
 

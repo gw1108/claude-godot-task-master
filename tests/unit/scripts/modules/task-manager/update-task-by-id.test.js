@@ -58,7 +58,6 @@ jest.unstable_mockModule(
 					dependencies: [],
 					priority: 'medium',
 					details: null,
-					testStrategy: null,
 					subtasks: []
 				}
 			},
@@ -257,7 +256,6 @@ describe('updateTaskById success path with generateObjectService', () => {
 					dependencies: [],
 					priority: 'low',
 					details: null,
-					testStrategy: null,
 					subtasks: []
 				}
 			]
@@ -271,7 +269,6 @@ describe('updateTaskById success path with generateObjectService', () => {
 			dependencies: [2],
 			priority: 'high',
 			details: 'New implementation details',
-			testStrategy: 'Unit tests required',
 			subtasks: [
 				{
 					id: 1,
@@ -329,7 +326,6 @@ describe('updateTaskById success path with generateObjectService', () => {
 				dependencies: [2],
 				priority: 'high',
 				details: 'New implementation details',
-				testStrategy: 'Unit tests required',
 				subtasks: expect.arrayContaining([
 					expect.objectContaining({
 						id: 1,
@@ -361,7 +357,6 @@ describe('updateTaskById success path with generateObjectService', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: null,
-					testStrategy: null,
 					subtasks: []
 				}
 			]
@@ -399,7 +394,6 @@ describe('updateTaskById success path with generateObjectService', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: null,
-					testStrategy: null,
 					subtasks: []
 				}
 			]
@@ -461,7 +455,6 @@ describe('Remote Update via Bridge', () => {
 					dependencies: [],
 					priority: 'high',
 					details: 'Remote update details',
-					testStrategy: 'Remote test strategy',
 					subtasks: []
 				}
 			}
@@ -480,7 +473,6 @@ describe('Remote Update via Bridge', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: 'Original details',
-					testStrategy: 'Original test strategy',
 					subtasks: []
 				}
 			]
@@ -518,7 +510,6 @@ describe('Remote Update via Bridge', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: 'Details',
-					testStrategy: 'Test strategy',
 					subtasks: []
 				}
 			]
@@ -534,7 +525,6 @@ describe('Remote Update via Bridge', () => {
 					dependencies: [],
 					priority: 'high',
 					details: 'Updated details',
-					testStrategy: 'Updated test strategy',
 					subtasks: []
 				}
 			},
@@ -574,7 +564,6 @@ describe('Remote Update via Bridge', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: 'Details',
-					testStrategy: 'Test strategy',
 					subtasks: []
 				}
 			]
@@ -590,7 +579,6 @@ describe('Remote Update via Bridge', () => {
 					dependencies: [],
 					priority: 'high',
 					details: 'Updated details',
-					testStrategy: 'Updated test strategy',
 					subtasks: []
 				}
 			},
@@ -646,7 +634,6 @@ describe('Prompt Manager Integration', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: 'Details',
-					testStrategy: 'Test strategy',
 					subtasks: []
 				}
 			]
@@ -662,7 +649,6 @@ describe('Prompt Manager Integration', () => {
 					dependencies: [],
 					priority: 'high',
 					details: 'Updated details',
-					testStrategy: 'Updated test strategy',
 					subtasks: []
 				}
 			},
@@ -725,7 +711,6 @@ describe('Context Gathering Integration', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: 'Details',
-					testStrategy: 'Test strategy',
 					subtasks: []
 				}
 			]
@@ -741,7 +726,6 @@ describe('Context Gathering Integration', () => {
 					dependencies: [],
 					priority: 'high',
 					details: 'Updated details',
-					testStrategy: 'Updated test strategy',
 					subtasks: []
 				}
 			},
@@ -804,7 +788,6 @@ describe('Fuzzy Task Search Integration', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: 'Details',
-					testStrategy: 'Test strategy',
 					subtasks: []
 				},
 				{
@@ -815,7 +798,6 @@ describe('Fuzzy Task Search Integration', () => {
 					dependencies: [],
 					priority: 'medium',
 					details: 'Related details',
-					testStrategy: 'Related test strategy',
 					subtasks: []
 				},
 				{
@@ -826,7 +808,6 @@ describe('Fuzzy Task Search Integration', () => {
 					dependencies: [],
 					priority: 'low',
 					details: 'More details',
-					testStrategy: 'Test strategy',
 					subtasks: []
 				}
 			]
@@ -842,7 +823,6 @@ describe('Fuzzy Task Search Integration', () => {
 					dependencies: [],
 					priority: 'high',
 					details: 'Updated details',
-					testStrategy: 'Updated test strategy',
 					subtasks: []
 				}
 			},

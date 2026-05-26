@@ -17,7 +17,6 @@ Tasks in tasks.json have the following structure:
 | `dependencies` | Prerequisite task IDs. ✅ Completed, ⏱️ Pending | `[1, 2]`                                               |
 | `priority`     | Task importance.                                | `"high"`, `"medium"`, `"low"`                          |
 | `details`      | Implementation instructions.                    | `"Use GitHub client ID/secret, handle callback..."`    |
-| `testStrategy` | How to verify success.                          | `"Deploy and confirm 'Hello World' response."`         |
 | `subtasks`     | Nested subtasks related to the main task.       | `[{"id": 1, "title": "Configure OAuth", ...}]`         |
 | `metadata`     | Optional user-defined data (see below).         | `{"githubIssue": 42, "sprint": "Q1-S3"}`               |
 

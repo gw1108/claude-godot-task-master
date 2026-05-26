@@ -129,10 +129,6 @@ export class PromptBuilderService {
 			sections.push(`**Implementation Details**:\n${task.details}`);
 		}
 
-		if (task.testStrategy) {
-			sections.push(`**Test Strategy**:\n${task.testStrategy}`);
-		}
-
 		if (task.dependencies && task.dependencies.length > 0) {
 			sections.push(`**Dependencies**: ${task.dependencies.join(', ')}`);
 		}

@@ -87,8 +87,7 @@ describe('show command', () => {
 					description: 'A comprehensive task description',
 					status: 'pending',
 					priority: 'high',
-					details: 'Implementation details go here',
-					testStrategy: 'Unit tests and integration tests'
+					details: 'Implementation details go here'
 				})
 			]
 		});
@@ -102,7 +101,6 @@ describe('show command', () => {
 		expect(output).toContain('pending');
 		expect(output).toContain('high');
 		expect(output).toContain('Implementation details');
-		expect(output).toContain('Unit tests and integration tests');
 	});
 
 	it('should show task with dependencies', () => {

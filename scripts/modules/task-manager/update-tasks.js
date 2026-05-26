@@ -234,13 +234,11 @@ async function updateTasks(
 					dependencies: task.dependencies ?? [],
 					priority: task.priority ?? null,
 					details: task.details ?? null,
-					testStrategy: task.testStrategy ?? null,
 					subtasks: task.subtasks
 						? task.subtasks.map((subtask) => ({
 								...subtask,
 								dependencies: subtask.dependencies ?? [],
-								status: subtask.status ?? 'pending',
-								testStrategy: subtask.testStrategy ?? null
+								status: subtask.status ?? 'pending'
 							}))
 						: null
 				})

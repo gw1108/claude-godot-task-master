@@ -193,7 +193,6 @@ export class LoopDomain {
 			sandbox: partial.sandbox ?? false,
 			includeOutput: partial.includeOutput ?? false,
 			traceLevel: partial.traceLevel ?? 'none',
-			sessionPersistence: partial.sessionPersistence ?? false,
 			commitWindowMinutes: partial.commitWindowMinutes ?? 20,
 			batchCommit: partial.batchCommit ?? true,
 			brief: partial.brief,

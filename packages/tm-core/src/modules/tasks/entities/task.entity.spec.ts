@@ -21,7 +21,6 @@ function createMinimalTask(overrides: Partial<Task> = {}): Task {
 		priority: 'medium',
 		dependencies: [],
 		details: 'Task details',
-		testStrategy: 'Test strategy',
 		subtasks: [],
 		...overrides
 	};
@@ -220,7 +219,6 @@ describe('TaskEntity', () => {
 				priority: 'high',
 				dependencies: ['1', '2'],
 				details: 'Detailed info',
-				testStrategy: 'Unit tests',
 				tags: ['urgent'],
 				metadata
 			});
@@ -235,7 +233,6 @@ describe('TaskEntity', () => {
 			expect(json.priority).toBe('high');
 			expect(json.dependencies).toEqual(['1', '2']);
 			expect(json.details).toBe('Detailed info');
-			expect(json.testStrategy).toBe('Unit tests');
 			expect(json.tags).toEqual(['urgent']);
 			expect(json.metadata).toEqual(metadata);
 		});
@@ -329,8 +326,7 @@ describe('TaskEntity', () => {
 						status: 'pending',
 						priority: 'low',
 						dependencies: [],
-						details: '',
-						testStrategy: ''
+						details: ''
 					}
 				]
 			});

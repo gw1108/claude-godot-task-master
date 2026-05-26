@@ -351,7 +351,6 @@ function moveSubtaskToTask(tasks, sourceId, destinationId) {
 		dependencies: sourceSubtask.dependencies || [],
 		priority: sourceSubtask.priority || 'medium',
 		details: sourceSubtask.details || '',
-		testStrategy: sourceSubtask.testStrategy || '',
 		subtasks: []
 	};
 
@@ -410,8 +409,7 @@ function moveTaskToSubtask(tasks, sourceId, destinationId) {
 		description: sourceTask.description,
 		status: sourceTask.status || 'pending',
 		dependencies: sourceTask.dependencies || [],
-		details: sourceTask.details || '',
-		testStrategy: sourceTask.testStrategy || ''
+		details: sourceTask.details || ''
 	};
 
 	// Find insertion position (based on commit fixes)

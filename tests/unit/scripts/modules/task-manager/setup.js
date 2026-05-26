@@ -14,8 +14,7 @@ export const sampleTasks = {
 			status: 'pending',
 			dependencies: [],
 			priority: 'high',
-			details: 'Detailed information for task 1',
-			testStrategy: 'Test strategy for task 1'
+			details: 'Detailed information for task 1'
 		},
 		{
 			id: 2,
@@ -24,8 +23,7 @@ export const sampleTasks = {
 			status: 'pending',
 			dependencies: [1],
 			priority: 'medium',
-			details: 'Detailed information for task 2',
-			testStrategy: 'Test strategy for task 2'
+			details: 'Detailed information for task 2'
 		},
 		{
 			id: 3,
@@ -35,7 +33,6 @@ export const sampleTasks = {
 			dependencies: [1, 2],
 			priority: 'high',
 			details: 'Detailed information for task 3',
-			testStrategy: 'Test strategy for task 3',
 			subtasks: [
 				{
 					id: 1,
@@ -73,8 +70,7 @@ export const sampleClaudeResponse = {
 			dependencies: [],
 			priority: 'high',
 			details:
-				'Create repository, configure build system, and setup dev environment',
-			testStrategy: 'Verify project builds and tests run'
+				'Create repository, configure build system, and setup dev environment'
 		},
 		{
 			id: 2,
@@ -83,9 +79,7 @@ export const sampleClaudeResponse = {
 			status: 'pending',
 			dependencies: [1],
 			priority: 'high',
-			details: 'Implement the core business logic for the application',
-			testStrategy:
-				'Unit tests for core functions, integration tests for workflows'
+			details: 'Implement the core business logic for the application'
 		}
 	]
 };

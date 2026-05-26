@@ -93,7 +93,6 @@ describe('expand-task prompt template', () => {
 		expect(SubtaskSchema.shape).toHaveProperty('dependencies');
 		expect(SubtaskSchema.shape).toHaveProperty('details');
 		expect(SubtaskSchema.shape).toHaveProperty('status');
-		expect(SubtaskSchema.shape).toHaveProperty('testStrategy');
 	});
 
 	test('complexity-report variant fails without task context regression test', () => {

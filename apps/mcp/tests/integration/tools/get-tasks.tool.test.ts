@@ -185,8 +185,7 @@ describe('get_tasks MCP tool', () => {
 							status: 'done',
 							priority: 'medium',
 							dependencies: [],
-							details: '',
-							testStrategy: ''
+							details: ''
 						},
 						{
 							id: '1.2',
@@ -196,8 +195,7 @@ describe('get_tasks MCP tool', () => {
 							status: 'pending',
 							priority: 'medium',
 							dependencies: [],
-							details: '',
-							testStrategy: ''
+							details: ''
 						}
 					]
 				})

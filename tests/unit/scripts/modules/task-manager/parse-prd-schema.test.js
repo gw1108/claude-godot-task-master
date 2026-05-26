@@ -7,7 +7,6 @@ describe('PRD Response Schema', () => {
 		title: 'Test Task',
 		description: 'Test description',
 		details: 'Test details',
-		testStrategy: 'Test strategy',
 		priority: 'high',
 		dependencies: [],
 		status: 'pending'
@@ -126,8 +125,7 @@ describe('PRD Response Schema', () => {
 						status: 'pending',
 						dependencies: [],
 						priority: 'high',
-						details: 'Create a Todo data model with properties...',
-						testStrategy: 'Unit tests for TodoManager class...'
+						details: 'Create a Todo data model with properties...'
 					},
 					{
 						id: 25,
@@ -136,8 +134,7 @@ describe('PRD Response Schema', () => {
 						status: 'pending',
 						dependencies: [24],
 						priority: 'high',
-						details: 'Build a simple HTML/CSS/JS interface...',
-						testStrategy: 'UI component tests...'
+						details: 'Build a simple HTML/CSS/JS interface...'
 					}
 				]
 			};

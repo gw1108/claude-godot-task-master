@@ -14,7 +14,6 @@ const createTask = (id: number, status = 'pending'): Task => ({
 	priority: 'medium',
 	dependencies: [],
 	details: '',
-	testStrategy: '',
 	subtasks: []
 });
 

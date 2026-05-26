@@ -455,10 +455,7 @@ async function getCachedOrExecute({ cacheKey, actionFn, log }) {
  * @param {string[]} fieldsToRemove - An array of field names to remove.
  * @returns {Object|Array} - The processed data with specified fields removed.
  */
-function processMCPResponseData(
-	taskOrData,
-	fieldsToRemove = ['details', 'testStrategy']
-) {
+function processMCPResponseData(taskOrData, fieldsToRemove = ['details']) {
 	if (!taskOrData) {
 		return taskOrData;
 	}

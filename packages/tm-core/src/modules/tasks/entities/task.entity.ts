@@ -22,7 +22,6 @@ export class TaskEntity implements Task {
 	priority: TaskPriority;
 	dependencies: string[];
 	details: string;
-	testStrategy?: string;
 	subtasks: Subtask[];
 
 	// Optional properties
@@ -50,9 +49,6 @@ export class TaskEntity implements Task {
 		// Ensure dependency IDs are also strings
 		this.dependencies = (data.dependencies || []).map((dep) => String(dep));
 		this.details = data.details;
-		if (data.testStrategy !== undefined) {
-			this.testStrategy = data.testStrategy;
-		}
 		// Normalize subtask IDs to strings
 		this.subtasks = (data.subtasks || []).map((subtask) => ({
 			...subtask,
@@ -248,7 +244,6 @@ export class TaskEntity implements Task {
 			priority: this.priority,
 			dependencies: this.dependencies,
 			details: this.details,
-			testStrategy: this.testStrategy,
 			subtasks: this.subtasks,
 			createdAt: this.createdAt,
 			updatedAt: this.updatedAt,

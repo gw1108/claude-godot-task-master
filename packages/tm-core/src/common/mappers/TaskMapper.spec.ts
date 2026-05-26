@@ -294,7 +294,6 @@ describe('TaskMapper', () => {
 				parent_task_id: 'parent-uuid',
 				metadata: {
 					details: 'Subtask details',
-					testStrategy: 'Subtask tests',
 					category: 'testing',
 					skills: ['Jest', 'Vitest'],
 					acceptanceCriteria: ['Tests pass', 'Coverage > 80%']

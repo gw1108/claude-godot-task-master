@@ -48,7 +48,6 @@ export interface TasksFile {
  * - subtasks: []
  * - description: Same as title
  * - details: Empty string
- * - testStrategy: Empty string
  */
 export function createTask(
 	overrides: Partial<Omit<Task, 'id'>> & { id: number | string; title: string }
@@ -61,7 +60,6 @@ export function createTask(
 		priority: overrides.priority ?? 'medium',
 		dependencies: overrides.dependencies ?? [],
 		details: overrides.details ?? '',
-		testStrategy: overrides.testStrategy ?? '',
 		subtasks: overrides.subtasks ?? [],
 		// Spread any additional optional fields
 		...(overrides.createdAt && { createdAt: overrides.createdAt }),
@@ -116,7 +114,6 @@ export function createTask(
  * - dependencies: []
  * - description: Same as title
  * - details: Empty string
- * - testStrategy: Empty string
  * - parentId: Derived from id if not provided (e.g., '1.2' -> parentId '1')
  */
 export function createSubtask(
@@ -138,7 +135,6 @@ export function createSubtask(
 		priority: overrides.priority ?? 'medium',
 		dependencies: overrides.dependencies ?? [],
 		details: overrides.details ?? '',
-		testStrategy: overrides.testStrategy ?? '',
 		// Spread any additional optional fields
 		...(overrides.createdAt && { createdAt: overrides.createdAt }),
 		...(overrides.updatedAt && { updatedAt: overrides.updatedAt }),
@@ -360,8 +356,6 @@ export const TaskScenarios = {
 					title: 'Implement User Authentication',
 					description: 'Add JWT-based authentication to the API',
 					details: 'Implement secure JWT authentication with refresh tokens',
-					testStrategy:
-						'Unit tests for auth functions, integration tests for flow',
 					category: 'development',
 					skills: ['TypeScript', 'JWT', 'Security'],
 					relevantFiles: [
@@ -439,7 +433,6 @@ export const MetadataFixtures = {
 	 */
 	completeMetadata: {
 		details: 'Detailed task requirements and scope',
-		testStrategy: 'Unit and integration tests',
 		relevantFiles: [
 			{
 				path: 'src/service.ts',
@@ -470,8 +463,7 @@ export const MetadataFixtures = {
 	 * Minimal metadata with only required fields
 	 */
 	minimalMetadata: {
-		details: 'Basic details',
-		testStrategy: 'Basic tests'
+		details: 'Basic details'
 	},
 
 	/**
@@ -479,7 +471,6 @@ export const MetadataFixtures = {
 	 */
 	malformedMetadata: {
 		details: 123, // Should be string
-		testStrategy: null, // Should be string
 		relevantFiles: 'not-an-array', // Should be array
 		codebasePatterns: [123, null, 'valid'], // Mixed invalid types
 		existingInfrastructure: [{ invalid: 'structure' }], // Missing required fields

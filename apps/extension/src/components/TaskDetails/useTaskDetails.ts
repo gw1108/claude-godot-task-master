@@ -4,7 +4,6 @@ import type { TaskMasterTask } from '../../webview/types';
 
 interface TaskFileData {
 	details?: string;
-	testStrategy?: string;
 }
 
 interface UseTaskDetailsProps {
@@ -85,8 +84,7 @@ export const useTaskDetails = ({
 	const taskFileData: TaskFileData = useMemo(() => {
 		if (!mergedCurrentTask) return {};
 		return {
-			details: mergedCurrentTask.details || '',
-			testStrategy: mergedCurrentTask.testStrategy || ''
+			details: mergedCurrentTask.details || ''
 		};
 	}, [mergedCurrentTask]);
 

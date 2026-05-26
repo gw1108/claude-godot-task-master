@@ -589,11 +589,6 @@ export class ContextGatherer {
 			sections.push(`Implementation Details: ${details}`);
 		}
 
-		if (task.testStrategy) {
-			const testStrategy = truncate(task.testStrategy, 300);
-			sections.push(`Test Strategy: ${testStrategy}`);
-		}
-
 		if (task.subtasks && task.subtasks.length > 0) {
 			sections.push(`Subtasks: ${task.subtasks.length} subtasks defined`);
 		}

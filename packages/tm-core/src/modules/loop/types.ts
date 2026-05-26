@@ -176,15 +176,6 @@ export interface LoopConfig {
 	 * Example: "Implement streaming output for loop command"
 	 */
 	brief?: string;
-	/**
-	 * Persist the claude session for each iteration (default: false).
-	 *
-	 * When false (the default), `--no-session-persistence` is appended to every
-	 * claude invocation so loop iterations do not accumulate in `claude --resume`
-	 * history. Set to true to allow session persistence (e.g., for debugging a
-	 * specific iteration with `claude --resume`).
-	 */
-	sessionPersistence?: boolean;
 	/** Minutes between batched git commits (default: 20). */
 	commitWindowMinutes?: number;
 	/** Enable batched git commits (default: true). */
@@ -263,7 +254,7 @@ export interface LoopResult {
 	finishedAt?: string;
 	/** Total wall-clock duration of the loop in milliseconds (includes inter-iteration sleeps) */
 	totalDuration?: number;
-	/** Session id of the most-recently-active claude session (only set when sessionPersistence=true) */
+	/** Session id of the most-recently-active claude session */
 	sessionId?: string;
 	/** Test phase results for each batched commit that triggered a test phase */
 	testPhases?: TestPhaseResult[];

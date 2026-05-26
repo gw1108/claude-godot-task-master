@@ -22,10 +22,21 @@ import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import { EventEmitter } from 'node:events';
 
-// Mock child_process, node:fs, and fs/promises
+// Mock child_process, node:fs, fs/promises, and GitAdapter
 vi.mock('node:child_process');
 vi.mock('node:fs');
 vi.mock('node:fs/promises');
+// Stable mock — uses plain functions so vi.resetAllMocks() doesn't break it
+vi.mock('../../git/adapters/git-adapter.js', () => ({
+	GitAdapter: function MockGitAdapter() {
+		return {
+			stageAllWithExcludes: () => Promise.resolve(undefined),
+			hasStagedChanges: () => Promise.resolve(false),
+			getLastCommit: () => Promise.resolve(null),
+			createCommit: () => Promise.resolve(undefined)
+		};
+	}
+}));
 
 describe('LoopService', () => {
 	const defaultOptions: LoopServiceOptions = {
@@ -1351,7 +1362,7 @@ describe('LoopService', () => {
 				expect(compactCall![1] as string).toContain('% of ctx');
 			});
 
-			it('does not write sibling or totals files in none traceLevel mode', async () => {
+			it('writes minimal sibling file but not totals file in none traceLevel mode', async () => {
 				vi.mocked(childProcess.spawnSync).mockReturnValue({
 					stdout: 'done',
 					stderr: '',
@@ -1376,7 +1387,11 @@ describe('LoopService', () => {
 				const totalsCall = writeCalls.find(
 					([p]) => typeof p === 'string' && (p as string).includes('.totals.')
 				);
-				expect(iterCall).toBeUndefined();
+				// Minimal sibling file is now always written (contains session UUID)
+				expect(iterCall).toBeDefined();
+				expect(iterCall![1] as string).toContain('# Iteration 1');
+				expect(iterCall![1] as string).toContain('**Session:**');
+				// Totals file is only written when trace/verbose telemetry is collected
 				expect(totalsCall).toBeUndefined();
 			});
 		});
@@ -1713,20 +1728,70 @@ describe('LoopService', () => {
 		});
 	});
 
-	describe('sessionPersistence in buildCommandArgs', () => {
+	describe('buildCommandArgs — unconditional session flags', () => {
 		let service: LoopService;
-		const minimalConfig = {
-			prompt: 'linting',
-			iterations: 1,
-			sleepSeconds: 0,
-			progressFile: '/test/progress.txt'
-		};
 
 		beforeEach(() => {
 			service = new LoopService(defaultOptions);
 		});
 
-		it('appends --no-session-persistence when sessionPersistence is false (non-sandbox)', async () => {
+		it('always uses --session-id on first call (non-sandbox)', () => {
+			const uuid = 'aaaaaaaa-0000-0000-0000-000000000000';
+			const args = (service as any).buildCommandArgs(
+				'prompt',
+				false,
+				false,
+				uuid,
+				false
+			);
+			expect(args).toContain('--session-id');
+			expect(args).toContain(uuid);
+			expect(args).not.toContain('--no-session-persistence');
+		});
+
+		it('uses --resume on continuation (non-sandbox)', () => {
+			const uuid = 'aaaaaaaa-0000-0000-0000-000000000000';
+			const args = (service as any).buildCommandArgs(
+				'prompt',
+				false,
+				false,
+				uuid,
+				true
+			);
+			expect(args).toContain('--resume');
+			expect(args).toContain(uuid);
+			expect(args).not.toContain('--no-session-persistence');
+		});
+
+		it('always uses --session-id on first call (sandbox)', () => {
+			const uuid = 'aaaaaaaa-0000-0000-0000-000000000000';
+			const args = (service as any).buildCommandArgs(
+				'prompt',
+				true,
+				false,
+				uuid,
+				false
+			);
+			expect(args).toContain('--session-id');
+			expect(args).toContain(uuid);
+			expect(args).not.toContain('--no-session-persistence');
+		});
+
+		it('uses --resume on continuation (sandbox)', () => {
+			const uuid = 'aaaaaaaa-0000-0000-0000-000000000000';
+			const args = (service as any).buildCommandArgs(
+				'prompt',
+				true,
+				false,
+				uuid,
+				true
+			);
+			expect(args).toContain('--resume');
+			expect(args).toContain(uuid);
+			expect(args).not.toContain('--no-session-persistence');
+		});
+
+		it('never emits --no-session-persistence in any run', async () => {
 			mockSpawnSync.mockReturnValue({
 				stdout: '',
 				stderr: '',
@@ -1737,85 +1802,20 @@ describe('LoopService', () => {
 			});
 
 			await service.run({
-				...minimalConfig,
-				sandbox: false,
-				sessionPersistence: false
+				prompt: 'linting',
+				iterations: 2,
+				sleepSeconds: 0,
+				progressFile: '/test/progress.txt',
+				sandbox: false
 			});
 
 			const claudeCalls = mockSpawnSync.mock.calls.filter(
 				([cmd]) => cmd === 'claude'
 			);
-			expect(claudeCalls.length).toBeGreaterThan(0);
-			expect(claudeCalls[0][1]).toContain('--no-session-persistence');
-		});
-
-		it('does NOT append --no-session-persistence when sessionPersistence is true (non-sandbox)', async () => {
-			mockSpawnSync.mockReturnValue({
-				stdout: '',
-				stderr: '',
-				status: 0,
-				signal: null,
-				pid: 123,
-				output: []
-			});
-
-			await service.run({
-				...minimalConfig,
-				sandbox: false,
-				sessionPersistence: true
-			});
-
-			const claudeCalls = mockSpawnSync.mock.calls.filter(
-				([cmd]) => cmd === 'claude'
-			);
-			expect(claudeCalls.length).toBeGreaterThan(0);
-			expect(claudeCalls[0][1]).not.toContain('--no-session-persistence');
-		});
-
-		it('appends --no-session-persistence when sessionPersistence is false (sandbox)', async () => {
-			mockSpawnSync.mockReturnValue({
-				stdout: '',
-				stderr: '',
-				status: 0,
-				signal: null,
-				pid: 123,
-				output: []
-			});
-
-			await service.run({
-				...minimalConfig,
-				sandbox: true,
-				sessionPersistence: false
-			});
-
-			const dockerCalls = mockSpawnSync.mock.calls.filter(
-				([cmd]) => cmd === 'docker'
-			);
-			expect(dockerCalls.length).toBeGreaterThan(0);
-			expect(dockerCalls[0][1]).toContain('--no-session-persistence');
-		});
-
-		it('does NOT append --no-session-persistence when sessionPersistence is true (sandbox)', async () => {
-			mockSpawnSync.mockReturnValue({
-				stdout: '',
-				stderr: '',
-				status: 0,
-				signal: null,
-				pid: 123,
-				output: []
-			});
-
-			await service.run({
-				...minimalConfig,
-				sandbox: true,
-				sessionPersistence: true
-			});
-
-			const dockerCalls = mockSpawnSync.mock.calls.filter(
-				([cmd]) => cmd === 'docker'
-			);
-			expect(dockerCalls.length).toBeGreaterThan(0);
-			expect(dockerCalls[0][1]).not.toContain('--no-session-persistence');
+			expect(claudeCalls.length).toBe(2);
+			for (const [, args] of claudeCalls) {
+				expect(args as string[]).not.toContain('--no-session-persistence');
+			}
 		});
 	});
 
@@ -1871,7 +1871,7 @@ describe('LoopService', () => {
 		});
 	});
 
-	describe('session-id and resume flags in buildCommandArgs', () => {
+	describe('session-id and resume flags — unconditional behavior', () => {
 		const UUID_RE =
 			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 		const minimalConfig = {
@@ -1886,7 +1886,7 @@ describe('LoopService', () => {
 			service = new LoopService(defaultOptions);
 		});
 
-		it('emits --session-id on iteration 1 when sessionPersistence=true (non-sandbox)', async () => {
+		it('always emits --session-id on iteration 1 (non-sandbox)', async () => {
 			mockSpawnSync.mockReturnValue({
 				stdout: '',
 				stderr: '',
@@ -1898,8 +1898,7 @@ describe('LoopService', () => {
 
 			await service.run({
 				...minimalConfig,
-				sandbox: false,
-				sessionPersistence: true
+				sandbox: false
 			});
 
 			const claudeCalls = mockSpawnSync.mock.calls.filter(
@@ -1914,7 +1913,7 @@ describe('LoopService', () => {
 			expect(args).not.toContain('--no-session-persistence');
 		});
 
-		it('emits --resume on iteration 2 when sessionPersistence=true (non-sandbox)', async () => {
+		it('always emits --resume on iteration 2 (non-sandbox)', async () => {
 			mockSpawnSync.mockReturnValue({
 				stdout: '',
 				stderr: '',
@@ -1927,8 +1926,7 @@ describe('LoopService', () => {
 			await service.run({
 				...minimalConfig,
 				iterations: 2,
-				sandbox: false,
-				sessionPersistence: true
+				sandbox: false
 			});
 
 			const claudeCalls = mockSpawnSync.mock.calls.filter(
@@ -1951,7 +1949,7 @@ describe('LoopService', () => {
 			expect(args2).not.toContain('--session-id');
 		});
 
-		it('emits --session-id on sandbox iteration 1 when sessionPersistence=true', async () => {
+		it('always emits --session-id on sandbox iteration 1', async () => {
 			mockSpawnSync.mockReturnValue({
 				stdout: '',
 				stderr: '',
@@ -1963,8 +1961,7 @@ describe('LoopService', () => {
 
 			await service.run({
 				...minimalConfig,
-				sandbox: true,
-				sessionPersistence: true
+				sandbox: true
 			});
 
 			const dockerCalls = mockSpawnSync.mock.calls.filter(
@@ -1975,37 +1972,6 @@ describe('LoopService', () => {
 			const idx = args.indexOf('--session-id');
 			expect(idx).toBeGreaterThan(-1);
 			expect(UUID_RE.test(args[idx + 1])).toBe(true);
-		});
-
-		it('never emits both --resume and --no-session-persistence', async () => {
-			mockSpawnSync.mockReturnValue({
-				stdout: '',
-				stderr: '',
-				status: 0,
-				signal: null,
-				pid: 123,
-				output: []
-			});
-
-			await service.run({
-				...minimalConfig,
-				iterations: 2,
-				sandbox: false,
-				sessionPersistence: true
-			});
-
-			const claudeCalls = mockSpawnSync.mock.calls.filter(
-				([cmd]) => cmd === 'claude'
-			);
-			for (const [, args] of claudeCalls) {
-				expect(
-					(args as string[]).filter(
-						(a) => a === '--resume' || a === '--no-session-persistence'
-					)
-				).not.toEqual(
-					expect.arrayContaining(['--resume', '--no-session-persistence'])
-				);
-			}
 		});
 	});
 

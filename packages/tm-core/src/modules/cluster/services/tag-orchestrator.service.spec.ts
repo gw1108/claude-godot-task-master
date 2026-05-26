@@ -52,7 +52,6 @@ const makeTask = (id: string, deps: string[] = []): Task => ({
 	priority: 'medium',
 	dependencies: deps,
 	details: '',
-	testStrategy: '',
 	subtasks: []
 });
 

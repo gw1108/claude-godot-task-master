@@ -143,8 +143,7 @@ describe('Tag boundary resolution', () => {
 			{
 				title: 'API work',
 				description: 'Implement endpoint',
-				details: 'Details',
-				testStrategy: 'Tests'
+				details: 'Details'
 			},
 			false
 		);
@@ -234,8 +233,7 @@ describe('Tag boundary resolution', () => {
 			{
 				title: 'Auto task',
 				description: '-',
-				details: '-',
-				testStrategy: '-'
+				details: '-'
 			},
 			false
 		);
@@ -266,8 +264,7 @@ describe('Tag boundary resolution', () => {
 			{
 				title: 'Fallback',
 				description: '-',
-				details: '-',
-				testStrategy: '-'
+				details: '-'
 			},
 			false
 		);

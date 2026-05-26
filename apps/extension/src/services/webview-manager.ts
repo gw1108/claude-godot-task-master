@@ -164,13 +164,11 @@ export class WebviewManager {
 					const task = await this.repository.getById(data.taskId);
 					if (task) {
 						response = {
-							details: task.details || '',
-							testStrategy: task.testStrategy || ''
+							details: task.details || ''
 						};
 					} else {
 						response = {
-							details: '',
-							testStrategy: ''
+							details: ''
 						};
 					}
 					break;

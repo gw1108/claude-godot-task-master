@@ -360,7 +360,6 @@ export class TaskService {
 							parentId: String(parent.id),
 							description: st.description,
 							details: st.details,
-							testStrategy: st.testStrategy,
 							subtasks: []
 						} as Task & { parentId: string });
 					}

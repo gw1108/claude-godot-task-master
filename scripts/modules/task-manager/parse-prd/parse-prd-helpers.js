@@ -154,8 +154,7 @@ export function processTasks(
 			// Ensure all required fields have values
 			title: task.title || '',
 			description: task.description || '',
-			details: task.details || '',
-			...(task.testStrategy ? { testStrategy: task.testStrategy } : {})
+			details: task.details || ''
 		};
 	});
 

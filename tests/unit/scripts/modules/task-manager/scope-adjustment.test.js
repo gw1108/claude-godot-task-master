@@ -95,9 +95,7 @@ describe('Scope Adjustment Commands', () => {
 					title: 'Complex Task with Advanced Features',
 					description: 'Enhanced description with more requirements',
 					details:
-						'Detailed implementation with error handling, validation, and advanced features',
-					testStrategy:
-						'Comprehensive testing including unit, integration, and edge cases'
+						'Detailed implementation with error handling, validation, and advanced features'
 				},
 				telemetryData: { tokens: 100, cost: 0.01 }
 			});
@@ -164,8 +162,7 @@ describe('Scope Adjustment Commands', () => {
 				mainResult: {
 					title: 'Task with Enhanced Security',
 					description: 'Description with security considerations',
-					details: 'Implementation with security validation and encryption',
-					testStrategy: 'Security-focused testing strategy'
+					details: 'Implementation with security validation and encryption'
 				},
 				telemetryData: { tokens: 120, cost: 0.012 }
 			});
@@ -230,8 +227,7 @@ describe('Scope Adjustment Commands', () => {
 				mainResult: {
 					title: 'Simple Task',
 					description: 'Basic description',
-					details: 'Basic implementation focusing on core functionality',
-					testStrategy: 'Simple unit tests for core functionality'
+					details: 'Basic implementation focusing on core functionality'
 				},
 				telemetryData: { tokens: 80, cost: 0.008 }
 			});
@@ -316,8 +312,7 @@ describe('Scope Adjustment Commands', () => {
 				mainResult: {
 					title: 'Enhanced Task',
 					description: 'Enhanced description',
-					details: 'Enhanced details',
-					testStrategy: 'Enhanced testing'
+					details: 'Enhanced details'
 				},
 				telemetryData: { tokens: 100, cost: 0.01 }
 			});

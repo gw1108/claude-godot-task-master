@@ -389,8 +389,6 @@ async function addTask(
 				contextFromArgs += `\n- Suggested Description: "${manualTaskData.description}"`;
 			if (manualTaskData?.details)
 				contextFromArgs += `\n- Additional Details Context: "${manualTaskData.details}"`;
-			if (manualTaskData?.testStrategy)
-				contextFromArgs += `\n- Additional Test Strategy Context: "${manualTaskData.testStrategy}"`;
 
 			// Load prompts using PromptManager
 			const promptManager = getPromptManager();
@@ -499,7 +497,6 @@ async function addTask(
 			title: taskData.title,
 			description: taskData.description,
 			details: taskData.details || '',
-			testStrategy: taskData.testStrategy || '',
 			status: 'pending',
 			dependencies: taskData.dependencies?.length
 				? taskData.dependencies

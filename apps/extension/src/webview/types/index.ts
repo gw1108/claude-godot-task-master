@@ -10,7 +10,6 @@ export interface TaskMasterTask {
 	priority: 'high' | 'medium' | 'low';
 	dependencies?: string[];
 	details?: string;
-	testStrategy?: string;
 	subtasks?: TaskMasterTask[];
 	complexityScore?: number;
 }
@@ -20,7 +19,6 @@ export interface TaskUpdates {
 	description?: string;
 	details?: string;
 	priority?: TaskMasterTask['priority'];
-	testStrategy?: string;
 	dependencies?: string[];
 }
 

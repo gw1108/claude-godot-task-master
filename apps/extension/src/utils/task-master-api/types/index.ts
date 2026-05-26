@@ -13,7 +13,6 @@ export interface MCPTaskResponse {
 			status: string;
 			priority: string;
 			details?: string;
-			testStrategy?: string;
 			dependencies?: Array<number | string>;
 			complexityScore?: number;
 			subtasks?: Array<{
@@ -51,7 +50,6 @@ export interface TaskMasterTask {
 		| 'cancelled';
 	priority: 'high' | 'medium' | 'low';
 	details?: string;
-	testStrategy?: string;
 	dependencies?: string[];
 	complexityScore?: number;
 	subtasks?: Array<{
@@ -60,7 +58,6 @@ export interface TaskMasterTask {
 		description?: string;
 		status: string;
 		details?: string;
-		testStrategy?: string;
 		dependencies?: Array<number | string>;
 	}>;
 }
@@ -145,7 +142,6 @@ export interface TaskUpdate {
 	description?: string;
 	details?: string;
 	priority?: 'high' | 'medium' | 'low';
-	testStrategy?: string;
 	dependencies?: string[];
 }
 

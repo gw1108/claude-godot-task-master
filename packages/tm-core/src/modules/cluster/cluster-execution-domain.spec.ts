@@ -86,7 +86,6 @@ function createTask(id: string, deps: string[] = []): Task {
 		priority: 'medium',
 		dependencies: deps,
 		details: '',
-		testStrategy: '',
 		subtasks: []
 	} as Task;
 }

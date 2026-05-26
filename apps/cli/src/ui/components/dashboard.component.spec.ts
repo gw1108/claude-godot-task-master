@@ -27,7 +27,6 @@ const createTestTask = (
 	priority: 'medium',
 	dependencies: [],
 	details: '',
-	testStrategy: '',
 	subtasks: [],
 	...overrides
 });
@@ -44,8 +43,7 @@ const createTestSubtask = (
 	description: '',
 	priority: 'medium',
 	dependencies: [],
-	details: '',
-	testStrategy: ''
+	details: ''
 });
 
 describe('dashboard.component - Bug Fix: Cancelled Tasks as Complete', () => {

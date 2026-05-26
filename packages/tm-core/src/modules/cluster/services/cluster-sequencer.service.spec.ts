@@ -25,7 +25,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -36,7 +35,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -73,7 +71,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -84,7 +81,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -127,7 +123,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -138,7 +133,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -149,7 +143,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -193,7 +186,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: ['2'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -204,7 +196,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -228,7 +219,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -273,7 +263,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -310,7 +299,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -361,7 +349,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -372,7 +359,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -400,7 +386,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -411,7 +396,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -437,7 +421,6 @@ describe('ClusterSequencerService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];

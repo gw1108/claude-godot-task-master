@@ -26,7 +26,6 @@ function createTask(id: string, overrides: Partial<Task> = {}): Task {
 		priority: 'medium',
 		dependencies: [],
 		details: '',
-		testStrategy: '',
 		subtasks: [],
 		...overrides
 	};

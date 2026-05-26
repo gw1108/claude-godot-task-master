@@ -207,7 +207,6 @@ When implementing a task, the agent will:
 - Reference the task's details section for implementation specifics
 - Consider dependencies on previous tasks
 - Follow the project's coding standards
-- Create appropriate tests based on the task's testStrategy
 
 You can ask:
 
@@ -234,7 +233,6 @@ The agent will:
 
 Before marking a task as complete, verify it according to:
 
-- The task's specified testStrategy
 - Any automated tests in the codebase
 - Manual verification if required
 

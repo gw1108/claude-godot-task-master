@@ -24,7 +24,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -35,7 +34,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -61,7 +59,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -72,7 +69,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -83,7 +79,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -108,7 +103,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -119,7 +113,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -130,7 +123,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['2'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -141,7 +133,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['3'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -166,7 +157,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['2'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -177,7 +167,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -200,7 +189,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -211,7 +199,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -222,7 +209,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1', '2'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -233,7 +219,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -244,7 +229,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['3', '4'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -276,7 +260,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: [
 						{
 							id: '1',
@@ -286,8 +269,7 @@ describe('ClusterDetectionService', () => {
 							status: 'pending',
 							priority: 'medium',
 							dependencies: [],
-							details: '',
-							testStrategy: ''
+							details: ''
 						},
 						{
 							id: '2',
@@ -297,8 +279,7 @@ describe('ClusterDetectionService', () => {
 							status: 'pending',
 							priority: 'medium',
 							dependencies: ['1'],
-							details: '',
-							testStrategy: ''
+							details: ''
 						}
 					]
 				}
@@ -322,7 +303,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['999'], // Non-existent dependency
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -346,7 +326,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -367,7 +346,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -391,7 +369,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -413,7 +390,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -424,7 +400,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -445,7 +420,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -456,7 +430,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -486,7 +459,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];
@@ -515,7 +487,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: [],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -526,7 +497,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['1'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				},
 				{
@@ -537,7 +507,6 @@ describe('ClusterDetectionService', () => {
 					priority: 'medium',
 					dependencies: ['2'],
 					details: '',
-					testStrategy: '',
 					subtasks: []
 				}
 			];

@@ -102,8 +102,7 @@ const sampleTasks = {
 				status: 'pending',
 				dependencies: [],
 				priority: 'high',
-				details: 'Detailed information for task 1',
-				testStrategy: 'Test strategy for task 1'
+				details: 'Detailed information for task 1'
 			},
 			{
 				id: 2,
@@ -112,8 +111,7 @@ const sampleTasks = {
 				status: 'pending',
 				dependencies: [1],
 				priority: 'medium',
-				details: 'Detailed information for task 2',
-				testStrategy: 'Test strategy for task 2'
+				details: 'Detailed information for task 2'
 			},
 			{
 				id: 3,
@@ -123,7 +121,6 @@ const sampleTasks = {
 				dependencies: [1, 2],
 				priority: 'high',
 				details: 'Detailed information for task 3',
-				testStrategy: 'Test strategy for task 3',
 				subtasks: [
 					{
 						id: 1,

@@ -71,11 +71,6 @@ export class TaskMapper {
 				priority: this.mapPriority(subtask.priority),
 				dependencies: dependenciesByTaskId.get(subtask.id) || [],
 				details: this.extractMetadataField(subtask.metadata, 'details', ''),
-				testStrategy: this.extractMetadataField(
-					subtask.metadata,
-					'testStrategy',
-					''
-				),
 				createdAt: subtask.created_at,
 				updatedAt: subtask.updated_at,
 				assignee: subtask.assignee_id || undefined,
@@ -98,11 +93,6 @@ export class TaskMapper {
 			priority: this.mapPriority(dbTask.priority),
 			dependencies: dependenciesByTaskId.get(dbTask.id) || [],
 			details: this.extractMetadataField(dbTask.metadata, 'details', ''),
-			testStrategy: this.extractMetadataField(
-				dbTask.metadata,
-				'testStrategy',
-				''
-			),
 			subtasks,
 			createdAt: dbTask.created_at,
 			updatedAt: dbTask.updated_at,

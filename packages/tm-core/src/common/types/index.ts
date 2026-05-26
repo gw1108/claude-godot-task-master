@@ -136,7 +136,6 @@ export interface Task extends TaskImplementationMetadata {
 	priority: TaskPriority;
 	dependencies: string[];
 	details: string;
-	testStrategy?: string;
 	subtasks: Subtask[];
 
 	// Optional enhanced properties
@@ -306,8 +305,6 @@ export function isTask(obj: unknown): obj is Task {
 		isTaskPriority(task.priority) &&
 		Array.isArray(task.dependencies) &&
 		typeof task.details === 'string' &&
-		(task.testStrategy === undefined ||
-			typeof task.testStrategy === 'string') &&
 		Array.isArray(task.subtasks)
 	);
 }

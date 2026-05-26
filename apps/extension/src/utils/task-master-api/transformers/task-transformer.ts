@@ -183,11 +183,6 @@ export class TaskTransformer {
 				undefined,
 				`details for task ${taskId}`
 			);
-			const testStrategy = this.validateAndNormalizeString(
-				task.testStrategy,
-				undefined,
-				`testStrategy for task ${taskId}`
-			);
 
 			// Handle complexity score
 			const complexityScore =
@@ -211,7 +206,6 @@ export class TaskTransformer {
 				status,
 				priority,
 				details,
-				testStrategy,
 				complexityScore,
 				dependencies,
 				subtasks
@@ -374,11 +368,6 @@ export class TaskTransformer {
 						subtask.details,
 						undefined,
 						`subtask details for parent ${parentTaskId}`
-					),
-					testStrategy: this.validateAndNormalizeString(
-						subtask.testStrategy,
-						undefined,
-						`subtask testStrategy for parent ${parentTaskId}`
 					),
 					dependencies: subtask.dependencies || []
 				};

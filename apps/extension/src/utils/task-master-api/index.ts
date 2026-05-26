@@ -228,9 +228,6 @@ export class TaskMasterApi {
 			if (updates.priority !== undefined) {
 				updateFields.push(`Priority: ${updates.priority}`);
 			}
-			if (updates.testStrategy !== undefined) {
-				updateFields.push(`Test Strategy: ${updates.testStrategy}`);
-			}
 			if (updates.dependencies !== undefined) {
 				updateFields.push(`Dependencies: ${updates.dependencies.join(', ')}`);
 			}

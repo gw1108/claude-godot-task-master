@@ -29,7 +29,6 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 		title: task.title,
 		description: task.description || '',
 		details: task.details || '',
-		testStrategy: task.testStrategy || '',
 		priority: task.priority,
 		dependencies: task.dependencies || []
 	});
@@ -61,7 +60,6 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 			updates.title !== task.title ||
 			updates.description !== (task.description || '') ||
 			updates.details !== (task.details || '') ||
-			updates.testStrategy !== (task.testStrategy || '') ||
 			updates.priority !== task.priority ||
 			JSON.stringify(updates.dependencies) !==
 				JSON.stringify(task.dependencies || [])
@@ -183,20 +181,6 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 							}
 							className="min-h-[120px]"
 							placeholder="Technical details and implementation notes"
-						/>
-					</div>
-
-					{/* Test Strategy */}
-					<div className="space-y-2">
-						<Label htmlFor="testStrategy">Test Strategy</Label>
-						<Textarea
-							id="testStrategy"
-							value={updates.testStrategy || ''}
-							onChange={(e) =>
-								setUpdates({ ...updates, testStrategy: e.target.value })
-							}
-							className="min-h-[80px]"
-							placeholder="How to test this task"
 						/>
 					</div>
 

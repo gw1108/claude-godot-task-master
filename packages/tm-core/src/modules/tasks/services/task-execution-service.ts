@@ -272,10 +272,6 @@ export class TaskExecutionService {
 			prompt += `Implementation Details:\n${workItem.details}\n\n`;
 		}
 
-		if (workItem.testStrategy) {
-			prompt += `Test Strategy:\n${workItem.testStrategy}\n\n`;
-		}
-
 		if (task.dependencies && task.dependencies.length > 0) {
 			prompt += `Dependencies: ${task.dependencies.join(', ')}\n\n`;
 		}

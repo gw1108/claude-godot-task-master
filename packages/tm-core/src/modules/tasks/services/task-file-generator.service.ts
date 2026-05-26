@@ -239,11 +239,6 @@ export class TaskFileGeneratorService {
 		content += '**Details:**\n\n';
 		content += `${task.details || 'No details provided.'}\n\n`;
 
-		if (task.testStrategy && task.testStrategy.trim().length > 0) {
-			content += '**Test Strategy:**\n\n';
-			content += `${task.testStrategy}\n`;
-		}
-
 		// Add subtasks if present
 		if (task.subtasks && task.subtasks.length > 0) {
 			content += '\n## Subtasks\n';

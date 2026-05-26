@@ -218,8 +218,7 @@ describe('parse-prd file extension compatibility', () => {
 				status: 'pending',
 				dependencies: [],
 				priority: 'high',
-				details: 'Implementation details for task 1',
-				testStrategy: 'Unit tests for task 1'
+				details: 'Implementation details for task 1'
 			},
 			{
 				id: 2,
@@ -228,8 +227,7 @@ describe('parse-prd file extension compatibility', () => {
 				status: 'pending',
 				dependencies: [1],
 				priority: 'medium',
-				details: 'Implementation details for task 2',
-				testStrategy: 'Integration tests for task 2'
+				details: 'Implementation details for task 2'
 			}
 		],
 		metadata: {

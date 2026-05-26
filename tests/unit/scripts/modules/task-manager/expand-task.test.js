@@ -78,9 +78,7 @@ jest.unstable_mockModule(
 						dependencies: [],
 						details:
 							'Initialize package.json, create src/ and test/ directories, set up linting configuration',
-						status: 'pending',
-						testStrategy:
-							'Verify all expected files and directories are created'
+						status: 'pending'
 					},
 					{
 						id: 2,
@@ -89,8 +87,7 @@ jest.unstable_mockModule(
 						dependencies: [1],
 						details:
 							'Create main classes, implement business logic, set up data models',
-						status: 'pending',
-						testStrategy: 'Unit tests for all core functions and classes'
+						status: 'pending'
 					},
 					{
 						id: 3,
@@ -99,8 +96,7 @@ jest.unstable_mockModule(
 						dependencies: [2],
 						details:
 							'Design UI components, implement responsive layouts, add user interactions',
-						status: 'pending',
-						testStrategy: 'UI tests and visual regression testing'
+						status: 'pending'
 					}
 				]
 			},

@@ -24,7 +24,6 @@ function createTask(id: string, overrides: Partial<Task> = {}): Task {
 		priority: 'medium',
 		dependencies: [],
 		details: '',
-		testStrategy: '',
 		subtasks: [],
 		...overrides
 	};
@@ -138,7 +137,6 @@ describe('FileStorage Metadata Preservation - Integration Tests', () => {
 							priority: 'medium',
 							dependencies: [],
 							details: '',
-							testStrategy: '',
 							metadata: { subtaskMeta: 'subtask-value' }
 						}
 					]
@@ -349,8 +347,7 @@ describe('FileStorage Metadata Preservation - Integration Tests', () => {
 						status: 'pending',
 						priority: 'medium',
 						dependencies: [],
-						details: 'Details',
-						testStrategy: 'Tests'
+						details: 'Details'
 						// No metadata - AI doesn't generate it
 					}
 				]
@@ -441,7 +438,6 @@ describe('FileStorage Metadata Preservation - Integration Tests', () => {
 						priority: 'medium',
 						dependencies: [],
 						details: '',
-						testStrategy: '',
 						subtasks: [],
 						metadata: {
 							preExisting: true,

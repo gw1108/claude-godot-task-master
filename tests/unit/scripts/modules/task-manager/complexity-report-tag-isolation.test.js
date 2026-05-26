@@ -188,8 +188,7 @@ jest.unstable_mockModule(
 								description: 'First subtask',
 								dependencies: [],
 								details: 'Implementation details',
-								status: 'pending',
-								testStrategy: 'Test strategy'
+								status: 'pending'
 							}
 						]
 					}),
@@ -288,8 +287,7 @@ jest.unstable_mockModule(
 							description: 'First subtask',
 							dependencies: [],
 							details: 'Implementation details',
-							status: 'pending',
-							testStrategy: 'Test strategy'
+							status: 'pending'
 						}
 					]
 				},

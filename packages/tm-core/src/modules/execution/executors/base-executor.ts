@@ -37,10 +37,6 @@ export abstract class BaseExecutor implements ITaskExecutor {
 			sections.push(`\nImplementation Details:\n${task.details}`);
 		}
 
-		if (task.testStrategy) {
-			sections.push(`\nTest Strategy:\n${task.testStrategy}`);
-		}
-
 		if (task.dependencies && task.dependencies.length > 0) {
 			sections.push(`\nDependencies: ${task.dependencies.join(', ')}`);
 		}

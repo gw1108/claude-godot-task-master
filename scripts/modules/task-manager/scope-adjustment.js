@@ -295,7 +295,6 @@ async function regenerateSubtasksForComplexity(
 **Task Title**: ${task.title}
 **Task Description**: ${task.description}
 **Implementation Details**: ${task.details}
-**Test Strategy**: ${task.testStrategy}
 
 **Complexity Direction**: This task was recently scoped ${direction} (${strength} strength) to ${direction === 'up' ? 'increase' : 'decrease'} complexity.
 ${originalComplexity ? `**Original Complexity**: ${originalComplexity}/10 - consider this when determining appropriate scope level.` : ''}
@@ -343,9 +342,8 @@ Return a JSON object with a "subtasks" array. Each subtask should have:
 - dependencies: Array of dependency IDs as STRINGS (use format ["${task.id}.1", "${task.id}.2"] for siblings, or empty array [] for no dependencies)
 - details: Implementation guidance
 - status: "pending"
-- testStrategy: Testing approach
 
-IMPORTANT: 
+IMPORTANT:
 - The 'id' field must be a NUMBER, not a string!
 - Dependencies must be strings, not numbers!
 
@@ -360,8 +358,7 @@ Ensure the JSON is valid and properly formatted.`;
 					description: z.string().min(10),
 					dependencies: z.array(z.string()),
 					details: z.string().min(20),
-					status: z.string(),
-					testStrategy: z.string()
+					status: z.string()
 				})
 			)
 		});
@@ -383,8 +380,7 @@ Ensure the JSON is valid and properly formatted.`;
 		// Post-process generated subtasks to ensure defaults
 		const processedGeneratedSubtasks = generatedSubtasks.map((subtask) => ({
 			...subtask,
-			status: subtask.status || 'pending',
-			testStrategy: subtask.testStrategy || ''
+			status: subtask.status || 'pending'
 		}));
 
 		// Ensure new subtasks have unique sequential IDs after the preserved ones
@@ -490,7 +486,6 @@ CURRENT TASK:
 Title: ${task.title}
 Description: ${task.description}
 Details: ${task.details}
-Test Strategy: ${task.testStrategy || 'Not specified'}
 
 ADJUSTMENT REQUIREMENTS:
 - Direction: ${isUp ? 'INCREASE' : 'DECREASE'} complexity
@@ -518,9 +513,8 @@ ADJUSTMENT REQUIREMENTS:
 
 	basePrompt += `\n\nReturn a JSON object with the updated task containing these fields:
 - title: Updated task title
-- description: Updated task description  
+- description: Updated task description
 - details: Updated implementation details
-- testStrategy: Updated test strategy
 - priority: Task priority ('low', 'medium', or 'high')
 
 Ensure the JSON is valid and properly formatted.`;
@@ -562,10 +556,6 @@ async function adjustTaskComplexity(
 			.string()
 			.min(1)
 			.describe('Updated implementation details with adjusted complexity'),
-		testStrategy: z
-			.string()
-			.min(1)
-			.describe('Updated testing approach for the adjusted scope'),
 		priority: z.enum(['low', 'medium', 'high']).describe('Task priority level')
 	});
 

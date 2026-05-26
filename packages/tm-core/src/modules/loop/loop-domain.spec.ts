@@ -107,6 +107,14 @@ describe('LoopDomain', () => {
 			const config = (loopDomain as any).buildConfig(fullConfig);
 			expect(config).toMatchObject(fullConfig);
 		});
+
+		it('buildConfig does not include sessionPersistence', () => {
+			const config = (loopDomain as any).buildConfig({
+				prompt: 'test',
+				progressFile: 'p.md'
+			});
+			expect('sessionPersistence' in config).toBe(false);
+		});
 	});
 
 	describe('isPreset', () => {

@@ -76,6 +76,7 @@ export class LoopService {
 	private lastCommitAt = 0;
 	private testPhases: TestPhaseResult[] = [];
 	private testPhaseTelemetry: TestPhaseTelemetry[] = [];
+	private loopStartRef: string | undefined;
 
 	private static readonly WRITE_TOOLS = new Set([
 		'Write',
@@ -258,16 +259,22 @@ export class LoopService {
 		let tasksCompleted = 0;
 		const startedAt = new Date(loopStart);
 
-		// Session persistence: generate a UUID before iteration 1; rotate on context overflow
-		const sessionPersistence = config.sessionPersistence ?? false;
-		let currentSessionId: string | undefined;
+		// Always generate a UUID before iteration 1; rotate on context overflow
+		let currentSessionId: string = randomUUID();
+		this._currentSessionId = currentSessionId;
 		let isFirstInSession = true;
-		if (sessionPersistence) {
-			currentSessionId = randomUUID();
-			this._currentSessionId = currentSessionId;
-		}
 
 		await this.initProgressFile(config, startedAt);
+
+		// Capture the HEAD SHA before any loop commits land
+		{
+			const gitAdapter = new GitAdapter(this.projectRoot);
+			const startRefResult = await gitAdapter.getLastCommit();
+			this.loopStartRef =
+				typeof startRefResult?.hash === 'string'
+					? startRefResult.hash.slice(0, 7)
+					: undefined;
+		}
 
 		// Notify presentation layer the loop has begun. Layered above iteration
 		// callbacks so verbose CLIs can stamp the start time once, not per-iteration.
@@ -278,7 +285,7 @@ export class LoopService {
 			config.callbacks?.onIterationStart?.(i, config.iterations);
 
 			// Select initial vs continuation prompt based on session state
-			const isResume = sessionPersistence && !isFirstInSession;
+			const isResume = !isFirstInSession;
 			let prompt: string;
 			if (isResume) {
 				if (this.isPreset(config.prompt)) {
@@ -307,7 +314,6 @@ export class LoopService {
 				level,
 				config.callbacks,
 				config.progressFile,
-				sessionPersistence,
 				config.iterations,
 				currentSessionId,
 				isResume
@@ -317,7 +323,6 @@ export class LoopService {
 
 			// Auto-rotate session UUID when context usage crosses 40%
 			if (
-				sessionPersistence &&
 				iteration.contextPercent !== undefined &&
 				iteration.contextPercent >= 40
 			) {
@@ -698,8 +703,8 @@ export class LoopService {
 			const last = await gitAdapter.getLastCommit();
 			sha = typeof last?.hash === 'string' ? last.hash.slice(0, 7) : undefined;
 
-			if (sha) {
-				await this.runTestPhase(sha, config);
+			if (sha && trigger === 'finalize') {
+				await this.runTestPhase(sha, config, this.loopStartRef);
 			}
 
 			await config.callbacks?.onBatchCommit?.({
@@ -714,19 +719,21 @@ export class LoopService {
 	}
 
 	private async runTestPhase(
-		parentSha: string,
-		config: LoopConfig
+		endSha: string,
+		config: LoopConfig,
+		startRef?: string
 	): Promise<void> {
 		const startTime = Date.now();
-		config.callbacks?.onTestPhaseStart?.(parentSha);
+		config.callbacks?.onTestPhaseStart?.(endSha);
+
+		const rangeDesc = startRef ? `${startRef}..${endSha}` : endSha;
 
 		let result: TestPhaseResult;
 		try {
-			const sessionPersistence = config.sessionPersistence ?? false;
-			const sessionId = sessionPersistence ? randomUUID() : undefined;
+			const sessionId: string = randomUUID();
 			const level = config.traceLevel ?? 'none';
 
-			const preset = makePostCommitTestPreset(parentSha);
+			const preset = makePostCommitTestPreset(rangeDesc);
 			const prompt = preset.initial({ projectRoot: this.projectRoot });
 
 			const iteration = await this.executeIteration(
@@ -737,7 +744,6 @@ export class LoopService {
 				level,
 				undefined, // no callbacks — test phase uses its own channel
 				config.progressFile,
-				sessionPersistence,
 				1,
 				sessionId,
 				false // isResume = false — fresh session
@@ -768,8 +774,8 @@ export class LoopService {
 				if (await testGitAdapter.hasStagedChanges()) {
 					const summaryLine = iteration.summary ?? '';
 					const commitBody = summaryLine
-						? `test(loop): tests for ${parentSha}\n\n${summaryLine}\n\nParent: ${parentSha}\nTrigger: post-commit-test-phase`
-						: `test(loop): tests for ${parentSha}\n\nParent: ${parentSha}\nTrigger: post-commit-test-phase`;
+						? `test(loop): golden path for ${rangeDesc}\n\n${summaryLine}\n\nRange: ${rangeDesc}\nTrigger: post-commit-test-phase`
+						: `test(loop): golden path for ${rangeDesc}\n\nRange: ${rangeDesc}\nTrigger: post-commit-test-phase`;
 					await testGitAdapter.createCommit(commitBody, {});
 					const testLast = await testGitAdapter.getLastCommit();
 					testCommitSha =
@@ -780,7 +786,7 @@ export class LoopService {
 			}
 
 			result = {
-				parentSha,
+				parentSha: endSha,
 				status,
 				summary: iteration.summary,
 				message: iteration.message,
@@ -790,7 +796,7 @@ export class LoopService {
 		} catch (err) {
 			this.logger.warn('runTestPhase: unexpected error', err);
 			result = {
-				parentSha,
+				parentSha: endSha,
 				status: 'error',
 				message: err instanceof Error ? err.message : String(err),
 				duration: Date.now() - startTime
@@ -799,7 +805,7 @@ export class LoopService {
 
 		this.testPhases.push(result);
 		this.testPhaseTelemetry.push({
-			parentSha,
+			parentSha: endSha,
 			duration: result.duration,
 			status: result.status,
 			testCommitSha: result.testCommitSha
@@ -1038,6 +1044,7 @@ export class LoopService {
 			writeToolCalls: number;
 			nonWriteToolCalls: number;
 		},
+		sessionId: string,
 		estimatedContext?: number,
 		contextPercent?: number
 	): string {
@@ -1046,7 +1053,8 @@ export class LoopService {
 			estimatedContext !== undefined
 				? ` | ctx: ${estimatedContext.toLocaleString('en-US')} tokens${contextPercent !== undefined ? ` (${contextPercent.toFixed(1)}% of ctx)` : ''}`
 				: '';
-		return `- Iter ${iterationNum}: ${status} | ${toolPart}${ctxPart}`;
+		const sessionPart = ` | session: ${sessionId.slice(0, 8)}`;
+		return `- Iter ${iterationNum}: ${status} | ${toolPart}${ctxPart}${sessionPart}`;
 	}
 
 	private parseCompletion(
@@ -1084,10 +1092,9 @@ export class LoopService {
 		level: LoopTraceLevel = 'none',
 		callbacks?: LoopOutputCallbacks,
 		progressFile?: string,
-		sessionPersistence = false,
 		totalIterations = 1,
-		sessionId?: string,
-		isResume?: boolean
+		sessionId: string = randomUUID(),
+		isResume: boolean = false
 	): Promise<LoopIteration> {
 		const startTime = Date.now();
 		const command = sandbox ? 'docker' : 'claude';
@@ -1103,7 +1110,6 @@ export class LoopService {
 				startTime,
 				callbacks,
 				progressFile,
-				sessionPersistence,
 				totalIterations,
 				sessionId,
 				isResume
@@ -1114,7 +1120,6 @@ export class LoopService {
 			prompt,
 			sandbox,
 			false,
-			sessionPersistence,
 			sessionId,
 			isResume
 		);
@@ -1150,6 +1155,32 @@ export class LoopService {
 			output,
 			result.status
 		);
+
+		if (progressFile) {
+			const siblingPath = this.iterationFilePath(
+				progressFile,
+				iterationNum,
+				totalIterations
+			);
+			await writeFile(
+				siblingPath,
+				`# Iteration ${iterationNum}\n**Session:** ${sessionId}\n`,
+				'utf-8'
+			);
+			const line = this.buildProgressLine(
+				iterationNum,
+				status,
+				{
+					totalToolCalls: 0,
+					taskMasterToolCalls: 0,
+					writeToolCalls: 0,
+					nonWriteToolCalls: 0
+				},
+				sessionId
+			);
+			await appendFile(progressFile, `${line}\n`, 'utf-8');
+		}
+
 		return {
 			iteration: iterationNum,
 			status,
@@ -1187,16 +1218,14 @@ export class LoopService {
 		startTime: number,
 		callbacks?: LoopOutputCallbacks,
 		progressFile?: string,
-		sessionPersistence = false,
 		totalIterations = 1,
-		sessionId?: string,
-		isResume?: boolean
+		sessionId: string = randomUUID(),
+		isResume: boolean = false
 	): Promise<LoopIteration> {
 		const args = this.buildCommandArgs(
 			prompt,
 			sandbox,
 			true,
-			sessionPersistence,
 			sessionId,
 			isResume
 		);
@@ -1211,6 +1240,7 @@ export class LoopService {
 
 		if (iterationFileLines) {
 			iterationFileLines.push(`# Iteration ${iterationNum}`);
+			iterationFileLines.push(`**Session:** ${sessionId}`);
 			if (atLeast(level, 'trace')) {
 				iterationFileLines.push(
 					`## Prompt sent to Claude\n\n\`\`\`text\n${this.truncateForFile(prompt)}\n\`\`\``
@@ -1438,6 +1468,7 @@ export class LoopService {
 							iterationNum,
 							iterStatus,
 							classification,
+							sessionId,
 							estimatedContext,
 							contextPercent
 						) + '\n',
@@ -1532,17 +1563,12 @@ export class LoopService {
 		prompt: string,
 		sandbox: boolean,
 		verbose: boolean,
-		sessionPersistence: boolean,
-		sessionId?: string,
+		sessionId: string,
 		isResume?: boolean
 	): string[] {
 		if (sandbox) {
 			const args = ['sandbox', 'run', 'claude', '-p', prompt];
-			if (!sessionPersistence) {
-				args.push('--no-session-persistence');
-			} else if (sessionId) {
-				args.push(isResume ? '--resume' : '--session-id', sessionId);
-			}
+			args.push(isResume ? '--resume' : '--session-id', sessionId);
 			return args;
 		}
 
@@ -1551,11 +1577,7 @@ export class LoopService {
 			// Use stream-json format to show Claude's work in real-time
 			args.push('--output-format', 'stream-json', '--verbose');
 		}
-		if (!sessionPersistence) {
-			args.push('--no-session-persistence');
-		} else if (sessionId) {
-			args.push(isResume ? '--resume' : '--session-id', sessionId);
-		}
+		args.push(isResume ? '--resume' : '--session-id', sessionId);
 		return args;
 	}
 

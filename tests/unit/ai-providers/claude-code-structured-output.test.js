@@ -332,8 +332,7 @@ describe('ClaudeCodeProvider structured outputs (v2.2.0+)', () => {
 						title: z.string().min(1),
 						description: z.string().min(1),
 						dependencies: z.array(z.number().int()),
-						details: z.string(),
-						testStrategy: z.string()
+						details: z.string()
 					})
 				)
 			});
@@ -346,8 +345,7 @@ describe('ClaudeCodeProvider structured outputs (v2.2.0+)', () => {
 							title: 'Implement feature X',
 							description: 'Description for feature X',
 							dependencies: [],
-							details: 'Implementation details',
-							testStrategy: 'Unit tests for feature X'
+							details: 'Implementation details'
 						}
 					]
 				},

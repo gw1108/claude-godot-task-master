@@ -473,8 +473,7 @@ async function updateTaskById(
 				...aiTask,
 				dependencies: aiTask.dependencies ?? [],
 				priority: aiTask.priority ?? null,
-				details: aiTask.details ?? null,
-				testStrategy: aiTask.testStrategy ?? null
+				details: aiTask.details ?? null
 			};
 			if (!updatedTask.title || !updatedTask.description)
 				throw new Error('Updated task missing required fields.');
@@ -523,7 +522,6 @@ async function updateTaskById(
 									)
 							: [],
 						status: subtask.status || 'pending',
-						testStrategy: subtask.testStrategy ?? null,
 						// Preserve subtask metadata from original (AI schema excludes metadata)
 						...(originalSubtask?.metadata && {
 							metadata: originalSubtask.metadata

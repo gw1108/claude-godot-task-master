@@ -30,8 +30,7 @@ const TaskUpdateSchema = z
 		description: z.string().optional(),
 		status: TaskStatusSchema.optional(),
 		priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-		details: z.string().optional(),
-		testStrategy: z.string().optional()
+		details: z.string().optional()
 	})
 	.partial();
 
@@ -249,8 +248,6 @@ export class SupabaseRepository {
 		};
 
 		if (updates.details !== undefined) metadata.details = updates.details;
-		if (updates.testStrategy !== undefined)
-			metadata.testStrategy = updates.testStrategy;
 
 		if (Object.keys(metadata).length > 0) {
 			dbUpdates.metadata = metadata as Json;

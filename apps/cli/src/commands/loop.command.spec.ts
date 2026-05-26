@@ -171,19 +171,11 @@ describe('LoopCommand', () => {
 			expect(option).toBeDefined();
 		});
 
-		it('session-persistence defaults to false', () => {
+		it('--session-persistence option does not exist', () => {
 			const option = loopCommand.options.find(
 				(o) => o.long === '--session-persistence'
 			);
-			expect(option?.defaultValue).toBe(false);
-		});
-
-		it('rejects invalid --session-persistence value', () => {
-			// Commander calls process.exit(1) on InvalidArgumentError; our spy throws instead
-			expect(() =>
-				loopCommand.parseOptions(['--session-persistence', 'yes'])
-			).toThrow();
-			expect(processExitSpy).toHaveBeenCalledWith(1);
+			expect(option).toBeUndefined();
 		});
 	});
 
@@ -613,40 +605,15 @@ describe('LoopCommand', () => {
 			);
 		});
 
-		it('passes sessionPersistence true to LoopConfig when option is true', async () => {
-			const result = createMockResult();
-			mockLoopRun.mockResolvedValue(result);
-
-			const execute = (loopCommand as any).execute.bind(loopCommand);
-			await execute({ sessionPersistence: true });
-
-			expect(mockLoopRun).toHaveBeenCalledWith(
-				expect.objectContaining({ sessionPersistence: true })
-			);
-		});
-
-		it('passes sessionPersistence false to LoopConfig when option is false', async () => {
-			const result = createMockResult();
-			mockLoopRun.mockResolvedValue(result);
-
-			const execute = (loopCommand as any).execute.bind(loopCommand);
-			await execute({ sessionPersistence: false });
-
-			expect(mockLoopRun).toHaveBeenCalledWith(
-				expect.objectContaining({ sessionPersistence: false })
-			);
-		});
-
-		it('defaults sessionPersistence to false when option is not provided', async () => {
+		it('does not pass sessionPersistence in LoopConfig', async () => {
 			const result = createMockResult();
 			mockLoopRun.mockResolvedValue(result);
 
 			const execute = (loopCommand as any).execute.bind(loopCommand);
 			await execute({});
 
-			expect(mockLoopRun).toHaveBeenCalledWith(
-				expect.objectContaining({ sessionPersistence: false })
-			);
+			const callArg = mockLoopRun.mock.calls[0][0];
+			expect('sessionPersistence' in callArg).toBe(false);
 		});
 	});
 });

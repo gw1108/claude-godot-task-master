@@ -12,9 +12,6 @@ export const AddTaskResponseSchema = z
 			.describe(
 				'In-depth implementation details, considerations, and guidance'
 			),
-		testStrategy: z
-			.string()
-			.describe('Detailed approach for verifying task completion'),
 		dependencies: z
 			.array(z.number())
 			.nullable()

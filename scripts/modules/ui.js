@@ -1521,17 +1521,6 @@ async function displayTaskById(
 			)
 		);
 	}
-	if (task.testStrategy && task.testStrategy.trim().length > 0) {
-		console.log(
-			boxen(chalk.white.bold('Test Strategy:') + '\n\n' + task.testStrategy, {
-				padding: { top: 0, bottom: 0, left: 1, right: 1 },
-				borderColor: 'cyan',
-				borderStyle: 'round',
-				margin: { top: 1, bottom: 0 }
-			})
-		);
-	}
-
 	// --- Subtask Table Display (uses filtered list: task.subtasks) ---
 	if (task.subtasks && task.subtasks.length > 0) {
 		console.log(

@@ -15,7 +15,6 @@ function createTestTask(
 		priority: 'medium',
 		dependencies: [],
 		details: '',
-		testStrategy: '',
 		subtasks: [],
 		...overrides
 	} as Task;
@@ -127,7 +126,6 @@ describe('PromptBuilderService', () => {
 				title: 'Setup auth',
 				description: 'Implement JWT auth',
 				details: 'Use bcrypt for hashing',
-				testStrategy: 'Unit test auth service',
 				dependencies: ['0'],
 				priority: 'high',
 				subtasks: [
@@ -139,8 +137,7 @@ describe('PromptBuilderService', () => {
 						description: '',
 						priority: 'medium',
 						dependencies: [],
-						details: '',
-						testStrategy: ''
+						details: ''
 					} as any
 				]
 			})
@@ -164,7 +161,6 @@ describe('PromptBuilderService', () => {
 		expect(prompt).toContain(
 			'**Implementation Details**:\nUse bcrypt for hashing'
 		);
-		expect(prompt).toContain('**Test Strategy**:\nUnit test auth service');
 		expect(prompt).toContain('**Dependencies**: 0');
 		expect(prompt).toContain('[pending] 1: Create auth middleware');
 		expect(prompt).toContain('**Status**: pending | **Priority**: high');
@@ -333,14 +329,13 @@ describe('PromptBuilderService', () => {
 		expect(prompt).not.toContain('Depends on');
 	});
 
-	it('should include details but omit testStrategy when only details is set', () => {
+	it('should include details when only details is set', () => {
 		const tasks = [
 			createTestTask({
 				id: '1',
 				title: 'Detailed task',
 				description: 'desc',
-				details: 'some impl',
-				testStrategy: ''
+				details: 'some impl'
 			})
 		];
 		const clusters = [

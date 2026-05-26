@@ -15,7 +15,6 @@ Tasks in tasks.json have the following structure:
   - This helps quickly identify which prerequisite tasks are blocking work
 - `priority`: Importance level of the task (Example: `"high"`, `"medium"`, `"low"`)
 - `details`: In-depth implementation instructions (Example: `"Use GitHub client ID/secret, handle callback, set session token."`)
-- `testStrategy`: Verification approach (Example: `"Deploy and call endpoint to confirm 'Hello World' response."`)
 - `subtasks`: List of smaller, more specific tasks that make up the main task (Example: `[{"id": 1, "title": "Configure OAuth", ...}]`)
 
 ## Task File Format
@@ -235,12 +234,6 @@ Each task within a tag context contains the following properties:
   "details": "Use GitHub OAuth client ID/secret, handle callback, set session token"
   ```
 
-- **`testStrategy`** (string): Verification approach
-
-  ```json
-  "testStrategy": "Deploy and call endpoint to confirm authentication flow"
-  ```
-
 - **`subtasks`** (array): List of smaller, more specific tasks
   ```json
   "subtasks": [
@@ -297,7 +290,7 @@ Here's a complete example showing the tagged task structure:
         "dependencies": [],
         "priority": "high",
         "details": "Create Express app with CORS, body parser, and error handling",
-        "testStrategy": "Start server and verify health check endpoint responds",
+
         "subtasks": [
           {
             "id": 1,
@@ -325,7 +318,7 @@ Here's a complete example showing the tagged task structure:
         "dependencies": [1],
         "priority": "high",
         "details": "Use JWT tokens for session management",
-        "testStrategy": "Test login/logout flow with valid and invalid credentials",
+
         "subtasks": []
       }
     ]
@@ -340,7 +333,7 @@ Here's a complete example showing the tagged task structure:
         "dependencies": [],
         "priority": "medium",
         "details": "Integrate with GitHub OAuth for user authentication",
-        "testStrategy": "Test OAuth flow with GitHub account",
+
         "subtasks": []
       }
     ]

@@ -40,10 +40,6 @@ export function registerAddTaskTool(server) {
 				.string()
 				.optional()
 				.describe('Implementation details (for manual task creation)'),
-			testStrategy: z
-				.string()
-				.optional()
-				.describe('Test strategy (for manual task creation)'),
 			dependencies: z
 				.string()
 				.optional()
@@ -100,7 +96,6 @@ export function registerAddTaskTool(server) {
 						title: args.title,
 						description: args.description,
 						details: args.details,
-						testStrategy: args.testStrategy,
 						dependencies: args.dependencies,
 						priority: args.priority,
 						research: args.research,

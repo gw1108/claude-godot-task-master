@@ -77,7 +77,6 @@ jest.unstable_mockModule(
 						'Task generated from: Create a new authentication system',
 					details:
 						'Implementation details for task generated from prompt: Create a new authentication system',
-					testStrategy: 'Write unit tests to verify functionality',
 					dependencies: []
 				}
 			},

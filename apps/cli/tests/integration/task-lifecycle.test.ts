@@ -176,7 +176,6 @@ describe('Task Lifecycle Integration Tests', () => {
 							priority: 'high',
 							dependencies: [],
 							details: 'Implementation details',
-							testStrategy: 'Test strategy',
 							subtasks: []
 						}
 					],
@@ -212,7 +211,6 @@ describe('Task Lifecycle Integration Tests', () => {
 							priority: 'high',
 							dependencies: [],
 							details: 'Parent task details',
-							testStrategy: 'Test strategy',
 							subtasks: [
 								{
 									id: '1',

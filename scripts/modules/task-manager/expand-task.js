@@ -334,8 +334,7 @@ async function expandTask(
 			generatedSubtasks = mainResult.subtasks.map((subtask) => ({
 				...subtask,
 				dependencies: subtask.dependencies ?? [],
-				status: subtask.status ?? 'pending',
-				testStrategy: subtask.testStrategy ?? null
+				status: subtask.status ?? 'pending'
 			}));
 			logger.info(`Received ${generatedSubtasks.length} subtasks from AI.`);
 		} catch (error) {

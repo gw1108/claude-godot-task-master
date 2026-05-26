@@ -14,7 +14,7 @@ import {
 	createTmCore
 } from '@tm/core';
 import chalk from 'chalk';
-import { Command, InvalidArgumentError, Option } from 'commander';
+import { Command, Option } from 'commander';
 import { displayCommandHeader } from '../utils/display-helpers.js';
 import { displayError } from '../utils/error-handler.js';
 import { getProjectRoot } from '../utils/project-root.js';
@@ -28,17 +28,8 @@ export interface LoopCommandOptions {
 	sandbox?: boolean;
 	output?: boolean;
 	tracelevel?: LoopTraceLevel;
-	sessionPersistence?: boolean;
 	commitWindowMinutes?: number;
 	batchCommit?: boolean;
-}
-
-function parseSessionPersistence(value: string): boolean {
-	if (value === 'true') return true;
-	if (value === 'false') return false;
-	throw new InvalidArgumentError(
-		`Invalid value "${value}" for --session-persistence. Expected "true" or "false".`
-	);
 }
 
 export class LoopCommand extends Command {
@@ -76,14 +67,6 @@ export class LoopCommand extends Command {
 				)
 					.choices(['none', 'verbose', 'trace'])
 					.default('none')
-			)
-			.addOption(
-				new Option(
-					'--session-persistence <true|false>',
-					'Persist the claude session for each loop iteration. Default: false (sessions are NOT persisted, preventing history pollution). Pass "true" to enable persistence (e.g., to allow claude --resume on a specific iteration).'
-				)
-					.argParser(parseSessionPersistence)
-					.default(false)
 			)
 			.option(
 				'--commit-window-minutes <minutes>',
@@ -165,7 +148,6 @@ export class LoopCommand extends Command {
 				// Domain defaults to false (library consumers opt-in explicitly)
 				includeOutput: options.output ?? true,
 				traceLevel,
-				sessionPersistence: options.sessionPersistence ?? false,
 				commitWindowMinutes: options.commitWindowMinutes,
 				batchCommit: options.batchCommit,
 				brief: briefName,

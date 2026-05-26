@@ -18,7 +18,6 @@ import { createLogWrapper } from '../../tools/utils.js';
  * @param {string} [args.title] - Task title (for manual task creation)
  * @param {string} [args.description] - Task description (for manual task creation)
  * @param {string} [args.details] - Implementation details (for manual task creation)
- * @param {string} [args.testStrategy] - Test strategy (for manual task creation)
  * @param {string} [args.dependencies] - Comma-separated list of task IDs this task depends on
  * @param {string} [args.priority='medium'] - Task priority (high, medium, low)
  * @param {string} [args.tasksJsonPath] - Path to the tasks.json file (resolved by tool)
@@ -104,8 +103,7 @@ export async function addTaskDirect(args, log, context = {}) {
 			manualTaskData = {
 				title: args.title,
 				description: args.description,
-				details: args.details || '',
-				testStrategy: args.testStrategy || ''
+				details: args.details || ''
 			};
 
 			log.info(
