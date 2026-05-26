@@ -854,7 +854,7 @@ describe('LoopService', () => {
 					([p]) => typeof p === 'string' && (p as string).includes('.iter-')
 				);
 				expect(iterCall).toBeDefined();
-				expect(iterCall![1] as string).toContain('## [VERBOSE] Iteration');
+				expect(iterCall![1] as string).toContain('# Iteration');
 				expect(iterCall![1] as string).not.toMatch(/\x1b\[[0-9;]*m/);
 			});
 
@@ -923,15 +923,15 @@ describe('LoopService', () => {
 						typeof p === 'string' &&
 						(p as string).includes('.iter-') &&
 						typeof c === 'string' &&
-						(c as string).includes('summary')
+						(c as string).includes('## Summary')
 				);
 				expect(iterCall).toBeDefined();
-				expect(iterCall![1] as string).toContain('input: 1,234');
-				expect(iterCall![1] as string).toContain('output: 567');
-				expect(iterCall![1] as string).toContain('total: 1,801');
+				expect(iterCall![1] as string).toContain('Input: 1,234');
+				expect(iterCall![1] as string).toContain('Output: 567');
+				expect(iterCall![1] as string).toContain('Total: 1,801');
 			});
 
-			it('test 4 — multiple tool_use blocks produce exactly one sibling iter file with ## Iteration marker', async () => {
+			it('test 4 — multiple tool_use blocks produce exactly one sibling iter file with # Iteration marker', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({
@@ -976,7 +976,7 @@ describe('LoopService', () => {
 						([p]) => typeof p === 'string' && (p as string).includes('.iter-')
 					);
 				expect(iterCalls).toHaveLength(1);
-				expect(iterCalls[0][1] as string).toContain('## [VERBOSE] Iteration 1');
+				expect(iterCalls[0][1] as string).toContain('# Iteration 1');
 			});
 
 			it('test 5 — truncation marker appears when payload exceeds 10 KB', () => {
@@ -989,7 +989,7 @@ describe('LoopService', () => {
 				expect(result.startsWith('a'.repeat(10_000))).toBe(true);
 			});
 
-			it('tags verbose-minimum lines with [VERBOSE] in the sibling iter file', async () => {
+			it('writes clean markdown headers without level tags in the sibling iter file', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({ type: 'result', result: 'done' })
@@ -1010,14 +1010,15 @@ describe('LoopService', () => {
 				);
 				expect(iterCall).toBeDefined();
 				const content = iterCall![1] as string;
-				expect(content).toContain('## [VERBOSE] Iteration 1');
-				expect(content).toContain('### [VERBOSE] Iteration 1 summary');
-				// Separator passes through untagged
+				expect(content).toContain('# Iteration 1');
+				expect(content).toContain('## Summary');
 				expect(content).toContain('---');
-				expect(content).not.toContain('[VERBOSE] ---');
+				// Level tags are no longer emitted into the file
+				expect(content).not.toContain('[VERBOSE]');
+				expect(content).not.toContain('[TRACE]');
 			});
 
-			it('tags trace-minimum lines with [TRACE] and verbose-minimum with [VERBOSE]', async () => {
+			it('writes prompt and tool-call sections with clean headers at trace level', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({
@@ -1064,22 +1065,22 @@ describe('LoopService', () => {
 				expect(iterCall).toBeDefined();
 				const content = iterCall![1] as string;
 
-				// Verbose-minimum headers
-				expect(content).toContain('## [VERBOSE] Iteration 1');
-				expect(content).toContain('### [VERBOSE] Iteration 1 summary');
+				// Verbose-minimum sections
+				expect(content).toContain('# Iteration 1');
+				expect(content).toContain('## Summary');
 
-				// Trace-minimum headers
-				expect(content).toContain('### [TRACE] LLM input');
-				expect(content).toContain('### [TRACE] Tool: bash input');
+				// Trace-minimum sections
+				expect(content).toContain('## Prompt sent to Claude');
+				expect(content).toContain('### `bash` input');
 				// tool_result blocks don't carry a name field in Claude's API → label is 'unknown'
-				expect(content).toContain('### [TRACE] Tool: unknown result');
+				expect(content).toContain('### `unknown` result');
 
-				// Fence markers pass through untagged
-				expect(content).not.toContain('[TRACE] ```');
-				expect(content).not.toContain('[VERBOSE] ```');
+				// Level tags are no longer emitted into the file
+				expect(content).not.toContain('[TRACE]');
+				expect(content).not.toContain('[VERBOSE]');
 			});
 
-			it('prefixes body lines in iteration summary block with [VERBOSE]', async () => {
+			it('writes summary body bullets with bold labels and no level prefixes', async () => {
 				vi.mocked(childProcess.spawn).mockReturnValue(
 					makeMockSpawnChild([
 						JSON.stringify({
@@ -1104,10 +1105,11 @@ describe('LoopService', () => {
 				);
 				expect(iterCall).toBeDefined();
 				const content = iterCall![1] as string;
-				// Body bullet lines should be prefixed
-				expect(content).toMatch(/\[VERBOSE\] - Tokens:/);
-				expect(content).toMatch(/\[VERBOSE\]   - input:/);
-				expect(content).toMatch(/\[VERBOSE\]   - output:/);
+				// Body bullet lines use bold labels and carry no level prefixes
+				expect(content).toContain('- **Tokens:**');
+				expect(content).toContain('  - Input:');
+				expect(content).toContain('  - Output:');
+				expect(content).not.toContain('[VERBOSE]');
 			});
 		});
 
@@ -1211,13 +1213,14 @@ describe('LoopService', () => {
 					traceLevel: 'verbose'
 				});
 
-				// appendFile calls to the progress file should NOT contain '## Iteration' blocks
+				// appendFile calls to the progress file should NOT contain the full
+				// per-iteration block (title or summary) — only the compact line.
 				const appendCalls = vi
 					.mocked(fsPromises.appendFile)
 					.mock.calls.filter(([p]) => p === '/test/progress.txt');
 				for (const [, c] of appendCalls) {
-					expect(c as string).not.toContain('## Iteration');
-					expect(c as string).not.toContain('## [VERBOSE] Iteration');
+					expect(c as string).not.toContain('# Iteration');
+					expect(c as string).not.toContain('## Summary');
 				}
 				// Compact line should be present
 				const compactCall = appendCalls.find(
@@ -1249,7 +1252,7 @@ describe('LoopService', () => {
 				);
 				expect(iterCall).toBeDefined();
 				expect(iterCall![0] as string).toContain('progress.iter-1.txt');
-				expect(iterCall![1] as string).toContain('## [VERBOSE] Iteration 1');
+				expect(iterCall![1] as string).toContain('# Iteration 1');
 			});
 
 			it('writes totals file at finalize with per-iteration markdown table', async () => {
@@ -2028,6 +2031,137 @@ describe('LoopService', () => {
 
 		it('returns 1_000_000 when modelId is undefined', () => {
 			expect(contextWindowFor(undefined)).toBe(1_000_000);
+		});
+	});
+
+	describe('writeTotalsFile – uncached token columns', () => {
+		let service: LoopService;
+		let capturedContent: string;
+
+		beforeEach(() => {
+			service = new LoopService(defaultOptions);
+			vi.mocked(fsPromises.writeFile).mockImplementation(
+				async (_path, data) => {
+					capturedContent = data as string;
+				}
+			);
+		});
+
+		const baseResult = {
+			finalStatus: 'max_iterations' as const,
+			tasksCompleted: 0,
+			totalIterations: 1,
+			totalDuration: 1000,
+			iterations: [],
+			startedAt: new Date().toISOString(),
+			finishedAt: new Date().toISOString()
+		};
+
+		it('renders Uncached tok and % of ctx uncached columns when tokenUsage is present', async () => {
+			const telemetry = [
+				{
+					iterationNum: 1,
+					totalToolCalls: 5,
+					taskMasterToolCalls: 2,
+					writeToolCalls: 1,
+					nonWriteToolCalls: 2,
+					estimatedContext: 50_000,
+					contextPercent: 5.0,
+					modelId: 'claude-opus-4-7',
+					status: 'completed' as const,
+					tokenUsage: {
+						inputTokens: 10_000,
+						outputTokens: 2_000,
+						cacheCreationInputTokens: 5_000,
+						cacheReadInputTokens: 33_000,
+						totalTokens: 50_000
+					}
+				}
+			];
+			await (service as any).writeTotalsFile(
+				'progress.txt',
+				baseResult,
+				telemetry
+			);
+			// Uncached tok = 10000 + 2000 = 12000 → "12,000"
+			expect(capturedContent).toContain('| 12,000 |');
+			// % of ctx uncached = 12000 / 1_000_000 * 100 = 1.2%
+			expect(capturedContent).toContain('| 1.2% |');
+		});
+
+		it('renders — for Uncached tok and % of ctx uncached when tokenUsage is absent', async () => {
+			const telemetry = [
+				{
+					iterationNum: 1,
+					totalToolCalls: 3,
+					taskMasterToolCalls: 1,
+					writeToolCalls: 1,
+					nonWriteToolCalls: 1,
+					estimatedContext: 0,
+					status: 'completed' as const
+				}
+			];
+			await (service as any).writeTotalsFile(
+				'progress.txt',
+				baseResult,
+				telemetry
+			);
+			const rowLine = capturedContent
+				.split('\n')
+				.find((l: string) => l.startsWith('| 1 |'));
+			expect(rowLine).toMatch(/\| — \| — \|$/);
+		});
+
+		it('renders aggregate Uncached and % of ctx uncached bullets', async () => {
+			const telemetry = [
+				{
+					iterationNum: 1,
+					totalToolCalls: 2,
+					taskMasterToolCalls: 1,
+					writeToolCalls: 0,
+					nonWriteToolCalls: 1,
+					estimatedContext: 10_000,
+					contextPercent: 1.0,
+					modelId: 'claude-sonnet-4-6',
+					status: 'completed' as const,
+					tokenUsage: {
+						inputTokens: 8_000,
+						outputTokens: 2_000,
+						cacheCreationInputTokens: 0,
+						cacheReadInputTokens: 0,
+						totalTokens: 10_000
+					}
+				}
+			];
+			await (service as any).writeTotalsFile(
+				'progress.txt',
+				baseResult,
+				telemetry
+			);
+			// Uncached aggregate = 8000 + 2000 = 10000 → "10,000"
+			expect(capturedContent).toContain('- Uncached: 10,000');
+			// % of ctx uncached = 10000 / 200000 * 100 = 5.0%  (sonnet window = 200_000)
+			expect(capturedContent).toContain('- % of ctx uncached: 5.0%');
+		});
+
+		it('renders — for aggregate % of ctx uncached when no iterations have tokenUsage', async () => {
+			const telemetry = [
+				{
+					iterationNum: 1,
+					totalToolCalls: 1,
+					taskMasterToolCalls: 0,
+					writeToolCalls: 0,
+					nonWriteToolCalls: 1,
+					estimatedContext: 0,
+					status: 'completed' as const
+				}
+			];
+			await (service as any).writeTotalsFile(
+				'progress.txt',
+				baseResult,
+				telemetry
+			);
+			expect(capturedContent).toContain('- % of ctx uncached: —');
 		});
 	});
 });

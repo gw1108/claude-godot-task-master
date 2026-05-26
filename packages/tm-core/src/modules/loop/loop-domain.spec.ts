@@ -35,7 +35,7 @@ describe('LoopDomain', () => {
 			// Verify by checking buildConfig output
 			const config = (domain as any).buildConfig({});
 			expect(config.progressFile).toBe(
-				path.join('/custom/root', '.taskmaster', 'progress.txt')
+				path.join('/custom/root', '.taskmaster', 'progress.md')
 			);
 		});
 
@@ -63,7 +63,7 @@ describe('LoopDomain', () => {
 		it('should construct progressFile from projectRoot', () => {
 			const config = (loopDomain as any).buildConfig({});
 			expect(config.progressFile).toBe(
-				path.join('/test/project', '.taskmaster', 'progress.txt')
+				path.join('/test/project', '.taskmaster', 'progress.md')
 			);
 		});
 

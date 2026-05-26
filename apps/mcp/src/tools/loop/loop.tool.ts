@@ -57,7 +57,7 @@ const LoopSchema = z.object({
 		.string()
 		.optional()
 		.describe(
-			'Absolute path to the progress file. Defaults to <projectRoot>/.taskmaster/progress.txt.'
+			'Absolute path to the progress file. Defaults to <projectRoot>/.taskmaster/progress.md.'
 		),
 	tag: z
 		.string()
