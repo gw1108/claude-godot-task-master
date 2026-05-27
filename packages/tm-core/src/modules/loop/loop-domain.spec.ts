@@ -5,8 +5,15 @@
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoopDomain } from './loop-domain.js';
+import { LoopService } from './services/loop.service.js';
+import { TasksDomain } from '../tasks/tasks-domain.js';
 import type { ConfigManager } from '../config/managers/config-manager.js';
 import type { LoopConfig } from './types.js';
+
+// LoopService spawns the Claude CLI and TasksDomain touches the filesystem -
+// both are external I/O boundaries, so mock them for these unit tests.
+vi.mock('./services/loop.service.js', () => ({ LoopService: vi.fn() }));
+vi.mock('../tasks/tasks-domain.js', () => ({ TasksDomain: vi.fn() }));
 
 // Mock ConfigManager
 function createMockConfigManager(projectRoot = '/test/project'): ConfigManager {
@@ -222,6 +229,36 @@ describe('LoopDomain', () => {
 			loopDomain.stop();
 			loopDomain.stop();
 			expect(loopDomain.getIsRunning()).toBe(false);
+		});
+	});
+
+	describe('run', () => {
+		it('initializes the TasksDomain before constructing LoopService (regression: pre-fetch "Failed to get task list")', async () => {
+			vi.clearAllMocks();
+
+			const initialize = vi.fn().mockResolvedValue(undefined);
+			const getNext = vi.fn();
+			vi.mocked(TasksDomain).mockImplementation(function (this: TasksDomain) {
+				Object.assign(this, { initialize, getNext });
+			} as unknown as typeof TasksDomain);
+
+			const loopRun = vi
+				.fn()
+				.mockResolvedValue({ finalStatus: 'all_complete' });
+			vi.mocked(LoopService).mockImplementation(function (this: LoopService) {
+				Object.assign(this, { run: loopRun, isRunning: false });
+			} as unknown as typeof LoopService);
+
+			const domain = new LoopDomain(createMockConfigManager());
+			await domain.run({ iterations: 1, prompt: 'default' });
+
+			// Without initialize(), TaskService.storage stays null and getNext throws.
+			expect(initialize).toHaveBeenCalledTimes(1);
+			// initialize() must complete before LoopService captures getNext.
+			expect(initialize.mock.invocationCallOrder[0]).toBeLessThan(
+				vi.mocked(LoopService).mock.invocationCallOrder[0]
+			);
+			expect(loopRun).toHaveBeenCalledTimes(1);
 		});
 	});
 

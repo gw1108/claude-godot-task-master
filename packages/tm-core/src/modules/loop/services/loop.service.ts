@@ -8,12 +8,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getLogger } from '../../../common/logger/index.js';
+import type { Task } from '../../../common/types/index.js';
 import { GitAdapter } from '../../git/adapters/git-adapter.js';
 import {
 	PRESETS,
-	getPreset,
-	isPreset as checkIsPreset
+	isPreset as checkIsPreset,
+	getPreset
 } from '../presets/index.js';
+import { makePostCommitTestPreset } from '../presets/post-commit-test.js';
 import type {
 	LoopConfig,
 	LoopIteration,
@@ -22,12 +24,10 @@ import type {
 	LoopResult,
 	LoopTokenUsage,
 	LoopTraceLevel,
-	TestPhaseResult,
-	PrefetchedTask
+	PrefetchedTask,
+	TestPhaseResult
 } from '../types.js';
 import { trimTask } from '../types.js';
-import type { Task } from '../../../common/types/index.js';
-import { makePostCommitTestPreset } from '../presets/post-commit-test.js';
 import { atLeast } from './trace-level.js';
 
 export interface LoopServiceOptions {
@@ -57,8 +57,11 @@ type IterationTelemetry = {
 	writeToolCalls: number;
 	nonWriteToolCalls: number;
 	tokenUsage?: LoopTokenUsage;
+	/** Peak single-turn context occupancy (high-water mark), in tokens. */
 	estimatedContext: number;
 	contextPercent?: number;
+	/** Unused context window at the peak: contextWindowFor(modelId) - estimatedContext. */
+	freeSpace?: number;
 	modelId?: string;
 	status: LoopIteration['status'];
 	duration?: number;
@@ -588,7 +591,11 @@ export class LoopService {
 			totalCacheWrite = 0,
 			totalCacheRead = 0,
 			totalTokens = 0;
-		let totalContext = 0;
+		// Peak occupancy is per-session (each iteration is a fresh claude run), so the
+		// meaningful aggregates are the worst-case high-water mark across iterations and
+		// the smallest free space that left, NOT a sum.
+		let maxPeakContext = 0;
+		let minFreeSpace: number | undefined;
 		let totalContextWindow = 0;
 
 		for (const t of telemetry) {
@@ -596,7 +603,8 @@ export class LoopService {
 			totalTM += t.taskMasterToolCalls;
 			totalWrites += t.writeToolCalls;
 			totalNW += t.nonWriteToolCalls;
-			totalContext += t.estimatedContext;
+			if (t.estimatedContext > maxPeakContext)
+				maxPeakContext = t.estimatedContext;
 			if (t.tokenUsage) {
 				totalInput += t.tokenUsage.inputTokens;
 				totalOutput += t.tokenUsage.outputTokens;
@@ -604,6 +612,9 @@ export class LoopService {
 				totalCacheRead += t.tokenUsage.cacheReadInputTokens ?? 0;
 				totalTokens += t.tokenUsage.totalTokens;
 				totalContextWindow += contextWindowFor(t.modelId);
+				const free = contextWindowFor(t.modelId) - t.estimatedContext;
+				if (minFreeSpace === undefined || free < minFreeSpace)
+					minFreeSpace = free;
 			}
 		}
 
@@ -613,8 +624,8 @@ export class LoopService {
 				? `- Total duration: ${fmt(result.totalDuration)}ms`
 				: '';
 
-		const tableHeader = `| Iter | Tool calls | TM | Writes | Non-writes | Total tokens | Est. context | % of ctx | Uncached tok | % of ctx uncached |`;
-		const tableSep = `|------|------------|----|----|--------|---------|-------|----------|--------------|--------------------|`;
+		const tableHeader = `| Iter | Tool calls | TM | Writes | Non-writes | Total tokens | Peak ctx | % of ctx | Free space | Uncached tok | % of ctx uncached |`;
+		const tableSep = `|------|------------|----|----|--------|---------|-------|----------|------------|--------------|--------------------|`;
 		const tableRows = telemetry
 			.map((t) => {
 				const pct =
@@ -622,6 +633,10 @@ export class LoopService {
 						? `${t.contextPercent.toFixed(1)}%`
 						: '—';
 				const tok = t.tokenUsage ? fmt(t.tokenUsage.totalTokens) : '—';
+				// Free space is window − peak occupancy; only meaningful when usage was reported.
+				const free = t.tokenUsage
+					? fmt(contextWindowFor(t.modelId) - t.estimatedContext)
+					: '—';
 				const uncachedTok = t.tokenUsage
 					? fmt(t.tokenUsage.inputTokens + t.tokenUsage.outputTokens)
 					: '—';
@@ -632,7 +647,7 @@ export class LoopService {
 							100
 						).toFixed(1) + '%'
 					: '—';
-				return `| ${t.iterationNum} | ${fmt(t.totalToolCalls)} | ${fmt(t.taskMasterToolCalls)} | ${fmt(t.writeToolCalls)} | ${fmt(t.nonWriteToolCalls)} | ${tok} | ${fmt(t.estimatedContext)} | ${pct} | ${uncachedTok} | ${uncachedPct} |`;
+				return `| ${t.iterationNum} | ${fmt(t.totalToolCalls)} | ${fmt(t.taskMasterToolCalls)} | ${fmt(t.writeToolCalls)} | ${fmt(t.nonWriteToolCalls)} | ${tok} | ${fmt(t.estimatedContext)} | ${pct} | ${free} | ${uncachedTok} | ${uncachedPct} |`;
 			})
 			.join('\n');
 
@@ -655,7 +670,8 @@ export class LoopService {
 			`- Cache read: ${fmt(totalCacheRead)}`,
 			`- Cache write: ${fmt(totalCacheWrite)}`,
 			`- Total: ${fmt(totalTokens)}`,
-			`- Estimated context: ${fmt(totalContext)} tokens`,
+			`- Peak context (max single turn across iters): ${fmt(maxPeakContext)} tokens`,
+			`- Min free space: ${minFreeSpace === undefined ? '—' : fmt(minFreeSpace) + ' tokens'}`,
 			`- Uncached: ${fmt(totalInput + totalOutput)}`,
 			`- % of ctx uncached: ${totalContextWindow === 0 ? '—' : (((totalInput + totalOutput) / totalContextWindow) * 100).toFixed(1) + '%'}`,
 			'',
@@ -873,6 +889,7 @@ export class LoopService {
 		nonWriteToolCalls?: number;
 		estimatedContext?: number;
 		contextPercent?: number;
+		freeSpace?: number;
 		modelId?: string;
 	}): string {
 		const fmt = (n: number) => n.toLocaleString('en-US');
@@ -915,8 +932,11 @@ export class LoopService {
 					? ` (${summary.contextPercent.toFixed(1)}% of ctx)`
 					: '';
 			lines.push(
-				`- **Context:** ${fmt(summary.estimatedContext)} tokens${pct}`
+				`- **Context (peak):** ${fmt(summary.estimatedContext)} tokens${pct}`
 			);
+			if (summary.freeSpace !== undefined) {
+				lines.push(`- **Free space:** ${fmt(summary.freeSpace)} tokens`);
+			}
 		}
 
 		if (summary.finalResult) {
@@ -1086,12 +1106,19 @@ export class LoopService {
 		},
 		sessionId: string,
 		estimatedContext?: number,
-		contextPercent?: number
+		contextPercent?: number,
+		freeSpace?: number
 	): string {
 		const toolPart = `tools: ${classification.totalToolCalls.toLocaleString('en-US')} (TM:${classification.taskMasterToolCalls} W:${classification.writeToolCalls} NW:${classification.nonWriteToolCalls})`;
+		const ctxDetail = [
+			contextPercent !== undefined
+				? `${contextPercent.toFixed(1)}% of ctx`
+				: '',
+			freeSpace !== undefined ? `${freeSpace.toLocaleString('en-US')} free` : ''
+		].filter(Boolean);
 		const ctxPart =
 			estimatedContext !== undefined
-				? ` | ctx: ${estimatedContext.toLocaleString('en-US')} tokens${contextPercent !== undefined ? ` (${contextPercent.toFixed(1)}% of ctx)` : ''}`
+				? ` | ctx: ${estimatedContext.toLocaleString('en-US')} tokens${ctxDetail.length > 0 ? ` (${ctxDetail.join(', ')})` : ''}`
 				: '';
 		const sessionPart = ` | session: ${sessionId.slice(0, 8)}`;
 		return `- Iter ${iterationNum}: ${status} | ${toolPart}${ctxPart}${sessionPart}`;
@@ -1312,6 +1339,10 @@ export class LoopService {
 			let stdoutEnded = false;
 			let finalResult = '';
 			let tokenUsage: LoopTokenUsage | undefined;
+			// High-water mark of single-turn context occupancy across the iteration.
+			// This is the real "how full was the window" figure (what /context shows);
+			// the cumulative `result` usage below is throughput, not occupancy.
+			let peakContext = 0;
 			let modelId: string | undefined;
 			let buffer = '';
 
@@ -1342,6 +1373,34 @@ export class LoopService {
 						const usage = this.extractTokenUsage(event);
 						if (usage) {
 							tokenUsage = usage;
+						}
+					}
+					// Each assistant message carries its own per-call usage; the prompt
+					// size for that turn is input + cache_read + cache_write. The max over
+					// all turns is the context high-water mark. (usage lives on
+					// event.message.usage, which the validated event type doesn't surface,
+					// so read it through a narrow cast.)
+					if (event.type === 'assistant') {
+						const turnUsage = this.extractTokenUsage({
+							usage: (
+								event.message as
+									| {
+											usage?: {
+												input_tokens?: number;
+												output_tokens?: number;
+												cache_creation_input_tokens?: number;
+												cache_read_input_tokens?: number;
+											};
+									  }
+									| undefined
+							)?.usage
+						});
+						if (turnUsage) {
+							const occupancy =
+								turnUsage.inputTokens +
+								(turnUsage.cacheCreationInputTokens ?? 0) +
+								(turnUsage.cacheReadInputTokens ?? 0);
+							if (occupancy > peakContext) peakContext = occupancy;
 						}
 					}
 					if (
@@ -1444,14 +1503,23 @@ export class LoopService {
 					.map(([name, count]) => ({ name, count }))
 					.sort((a, b) => b.count - a.count);
 				const classification = this.classifyToolCalls(toolCallCounts);
-				const estimatedContext =
+				// Context occupancy = peak single-turn prompt size (the high-water mark
+				// that /context reports). Fall back to the cumulative result usage only
+				// when no per-message usage was streamed (older Claude CLI versions).
+				const fallbackContext =
 					(tokenUsage?.inputTokens ?? 0) +
 					(tokenUsage?.cacheCreationInputTokens ?? 0) +
 					(tokenUsage?.cacheReadInputTokens ?? 0);
-				const contextPercent =
-					tokenUsage != null
-						? (estimatedContext / contextWindowFor(modelId)) * 100
-						: undefined;
+				const estimatedContext =
+					peakContext > 0 ? peakContext : fallbackContext;
+				const hasContextSignal = peakContext > 0 || tokenUsage != null;
+				const contextWindow = contextWindowFor(modelId);
+				const contextPercent = hasContextSignal
+					? (estimatedContext / contextWindow) * 100
+					: undefined;
+				const freeSpace = hasContextSignal
+					? Math.max(0, contextWindow - estimatedContext)
+					: undefined;
 
 				// Trace mode: emit aggregated tool-call summary, final result, and token usage
 				if (atLeast(level, 'trace') && callbacks?.onIterationSummary) {
@@ -1465,6 +1533,7 @@ export class LoopService {
 						nonWriteToolCalls: classification.nonWriteToolCalls,
 						estimatedContext,
 						...(contextPercent !== undefined && { contextPercent }),
+						...(freeSpace !== undefined && { freeSpace }),
 						...(modelId !== undefined && { modelId })
 					});
 				}
@@ -1484,6 +1553,7 @@ export class LoopService {
 							...classification,
 							estimatedContext,
 							...(contextPercent !== undefined && { contextPercent }),
+							...(freeSpace !== undefined && { freeSpace }),
 							...(modelId !== undefined && { modelId })
 						})
 					);
@@ -1510,7 +1580,8 @@ export class LoopService {
 							classification,
 							sessionId,
 							estimatedContext,
-							contextPercent
+							contextPercent,
+							freeSpace
 						) + '\n',
 						'utf-8'
 					).catch((err: unknown) => {
@@ -1523,6 +1594,7 @@ export class LoopService {
 						tokenUsage: tokenUsage ?? undefined,
 						estimatedContext,
 						...(contextPercent !== undefined && { contextPercent }),
+						...(freeSpace !== undefined && { freeSpace }),
 						...(modelId !== undefined && { modelId }),
 						status: iterStatus,
 						duration: Date.now() - startTime
@@ -1540,7 +1612,8 @@ export class LoopService {
 					message,
 					summary,
 					...(includeOutput && { output: finalResult }),
-					...(contextPercent !== undefined && { contextPercent })
+					...(contextPercent !== undefined && { contextPercent }),
+					...(freeSpace !== undefined && { freeSpace })
 				});
 			});
 		});

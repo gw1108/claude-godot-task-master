@@ -3,24 +3,24 @@
  * Tests the synchronous spawnSync-based implementation
  */
 
+import * as childProcess from 'node:child_process';
+import { EventEmitter } from 'node:events';
+import * as fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
 import {
+	type MockInstance,
 	afterEach,
 	beforeEach,
 	describe,
 	expect,
 	it,
-	vi,
-	type MockInstance
+	vi
 } from 'vitest';
 import {
 	LoopService,
-	contextWindowFor,
-	type LoopServiceOptions
+	type LoopServiceOptions,
+	contextWindowFor
 } from './loop.service.js';
-import * as childProcess from 'node:child_process';
-import * as fs from 'node:fs';
-import * as fsPromises from 'node:fs/promises';
-import { EventEmitter } from 'node:events';
 
 // Mock child_process, node:fs, fs/promises, and GitAdapter
 vi.mock('node:child_process');
@@ -1360,6 +1360,72 @@ describe('LoopService', () => {
 				);
 				expect(compactCall).toBeDefined();
 				expect(compactCall![1] as string).toContain('% of ctx');
+			});
+
+			it('reports peak single-turn occupancy and free space, not cumulative usage', async () => {
+				vi.mocked(childProcess.spawn).mockReturnValue(
+					makeMockSpawnChild([
+						JSON.stringify({
+							type: 'system',
+							model: 'claude-opus-4-7-20251101'
+						}),
+						// Turn 1: modest occupancy.
+						JSON.stringify({
+							type: 'assistant',
+							message: {
+								content: [{ type: 'text', text: 'a' }],
+								usage: {
+									input_tokens: 5,
+									cache_read_input_tokens: 40_000,
+									cache_creation_input_tokens: 1_000,
+									output_tokens: 100
+								}
+							}
+						}),
+						// Turn 2: the peak — 5 + 90,000 + 6,000 = 96,005 tokens in the window.
+						JSON.stringify({
+							type: 'assistant',
+							message: {
+								content: [{ type: 'text', text: 'b' }],
+								usage: {
+									input_tokens: 5,
+									cache_read_input_tokens: 90_000,
+									cache_creation_input_tokens: 6_000,
+									output_tokens: 200
+								}
+							}
+						}),
+						// Cumulative result usage is far larger (cache_read is summed per
+						// turn); it must NOT drive the context-occupancy figure.
+						JSON.stringify({
+							type: 'result',
+							result: 'done',
+							usage: {
+								input_tokens: 50,
+								cache_read_input_tokens: 800_000,
+								cache_creation_input_tokens: 50_000,
+								output_tokens: 5_000
+							}
+						})
+					]) as unknown as ReturnType<typeof childProcess.spawn>
+				);
+
+				const onIterationSummary = vi.fn();
+				await service.run({
+					prompt: 'linting',
+					iterations: 1,
+					sleepSeconds: 0,
+					progressFile: '/test/progress.txt',
+					traceLevel: 'trace',
+					callbacks: { onIterationSummary }
+				});
+
+				const [, summary] = onIterationSummary.mock.calls[0];
+				// Peak occupancy (turn 2), not the ~850k cumulative result usage.
+				expect(summary.estimatedContext).toBe(96_005);
+				// 1,000,000 (opus window) − 96,005 peak.
+				expect(summary.freeSpace).toBe(903_995);
+				expect(summary.contextPercent).toBeCloseTo(9.6, 1);
 			});
 
 			it('writes minimal sibling file but not totals file in none traceLevel mode', async () => {

@@ -157,8 +157,11 @@ export interface LoopOutputCallbacks {
 			taskMasterToolCalls?: number;
 			writeToolCalls?: number;
 			nonWriteToolCalls?: number;
+			/** Peak single-turn context occupancy (high-water mark), in tokens. */
 			estimatedContext?: number;
 			contextPercent?: number;
+			/** Unused context window at the peak: contextWindow - estimatedContext. */
+			freeSpace?: number;
 			modelId?: string;
 		}
 	) => void;
@@ -248,8 +251,10 @@ export interface LoopIteration {
 	output?: string;
 	/** One-line summary emitted by the LLM via <loop-summary> marker (undefined if absent). */
 	summary?: string;
-	/** Estimated context usage as percentage of the model's context window (verbose/trace mode only). */
+	/** Peak context usage as percentage of the model's context window (verbose/trace mode only). */
 	contextPercent?: number;
+	/** Unused context window at the peak turn, in tokens (verbose/trace mode only). */
+	freeSpace?: number;
 }
 
 /**

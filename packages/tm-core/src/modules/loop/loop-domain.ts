@@ -73,6 +73,10 @@ export class LoopDomain {
 
 		const fullConfig = this.buildConfig(config);
 		const tasksDomain = new TasksDomain(this.configManager);
+		// Must initialize before use: TaskService.storage is null until
+		// initialize() runs, so an un-initialized getNext() throws and the
+		// loop's pre-fetch fails with "Failed to get task list".
+		await tasksDomain.initialize();
 		this.loopService = new LoopService({
 			projectRoot: this.projectRoot,
 			getNext: (tag) => tasksDomain.getNext(tag)
