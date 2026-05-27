@@ -605,6 +605,11 @@ function displayHelp() {
 					desc: 'Generate tasks from a PRD document'
 				},
 				{
+					name: 'parse-systems',
+					args: '--input=<file> [--append] [--research]',
+					desc: 'Generate tasks from a systems design document (one task per ### section)'
+				},
+				{
 					name: 'generate',
 					args: '',
 					desc: 'Create individual task files from tasks.json'
