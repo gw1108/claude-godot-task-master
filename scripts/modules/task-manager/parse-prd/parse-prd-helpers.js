@@ -150,7 +150,14 @@ export function processTasks(
 			status: task.status || 'pending',
 			priority: task.priority || defaultPriority,
 			dependencies: Array.isArray(task.dependencies) ? task.dependencies : [],
-			subtasks: task.subtasks || [],
+			subtasks: (task.subtasks || []).map((st) => ({
+				id: st.id,
+				title: st.title || '',
+				description: st.description || '',
+				details: st.details || '',
+				status: st.status || 'pending',
+				dependencies: Array.isArray(st.dependencies) ? st.dependencies : []
+			})),
 			// Ensure all required fields have values
 			title: task.title || '',
 			description: task.description || '',

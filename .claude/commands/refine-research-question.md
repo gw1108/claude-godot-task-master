@@ -1,6 +1,6 @@
 ---
 name: refine_research_question
-description: Refine and sharpen a research question. The skill works interactively: it decomposes the question into composable research areas, asks clarifying and edge-case questions, iterates with the user until the question is sharp, and saves the refined question to thoughts/shared/questions/.
+description: Refine and sharpen a research question. The skill works interactively. it decomposes the question into composable research areas, asks clarifying and edge-case questions, iterates with the user until the question is sharp, and saves the refined question to thoughts/shared/questions/.
 model: opus
 allowed-tools:
   - Write

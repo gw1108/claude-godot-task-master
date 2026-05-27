@@ -301,7 +301,7 @@ task-master rules add windsurf,roo,vscode
 
 ### Optimizing MCP Tool Loading
 
-Task Master's MCP server supports selective tool loading to reduce context window usage. By default, all 36 tools are loaded (~21,000 tokens) to maintain backward compatibility with existing installations.
+Task Master's MCP server supports selective tool loading to reduce context window usage. By default, all 46 tools are loaded (~21,000 tokens) to maintain backward compatibility with existing installations.
 
 You can optimize performance by configuring the `TASK_MASTER_TOOLS` environment variable:
 
@@ -309,9 +309,9 @@ You can optimize performance by configuring the `TASK_MASTER_TOOLS` environment 
 
 | Mode | Tools | Context Usage | Use Case |
 |------|-------|--------------|----------|
-| `all` (default) | 36 | ~21,000 tokens | Complete feature set - all tools available |
+| `all` (default) | 46 | ~21,000 tokens | Complete feature set - all tools available |
 | `standard` | 15 | ~10,000 tokens | Common task management operations |
-| `core` (or `lean`) | 7 | ~5,000 tokens | Essential daily development workflow |
+| `core` (or `lean`) | 8 | ~5,000 tokens | Essential daily development workflow |
 | `custom` | Variable | Variable | Comma-separated list of specific tools |
 
 ### Configuration Methods
@@ -354,11 +354,11 @@ claude mcp add task-master-ai --scope user \
 
 ### Tool Sets Details
 
-**Core Tools (7):** `get_tasks`, `next_task`, `get_task`, `set_task_status`, `update_subtask`, `parse_prd`, `expand_task`
+**Core Tools (8):** `get_tasks`, `next_task`, `get_task`, `set_task_status`, `update_subtask`, `parse_prd`, `parse_systems`, `expand_task`
 
-**Standard Tools (15):** All core tools plus `initialize_project`, `analyze_project_complexity`, `expand_all`, `add_subtask`, `remove_task`, `generate`, `add_task`, `complexity_report`
+**Standard Tools (15):** All core tools plus `initialize_project`, `analyze_project_complexity`, `expand_all`, `add_subtask`, `remove_task`, `add_task`, `complexity_report`
 
-**All Tools (36):** Complete set including project setup, task management, analysis, dependencies, tags, research, and more
+**All Tools (46):** Complete set including project setup, task management, analysis, dependencies, tags, research, and more
 
 ### Recommendations
 

@@ -4,14 +4,17 @@
 import { z } from 'zod';
 import { TASK_PRIORITY_OPTIONS } from '../../../../src/constants/task-priority.js';
 
-// Subtask schema — no priority, no testStrategy; deps are parent-local (1-based)
+// Subtask schema — no priority, no testStrategy; deps are unused (list position encodes order)
 export const systemsSubtaskSchema = z.object({
 	id: z.number(),
 	title: z.string().min(1),
 	description: z.string().min(1),
 	details: z.string(),
 	status: z.string(),
-	dependencies: z.array(z.number())
+	dependencies: z
+		.array(z.number())
+		.optional()
+		.transform(() => [])
 });
 
 // Top-level task schema — full task with priority and populated subtasks array
@@ -21,7 +24,10 @@ export const systemsSingleTaskSchema = z.object({
 	description: z.string().min(1),
 	details: z.string(),
 	priority: z.enum(TASK_PRIORITY_OPTIONS),
-	dependencies: z.array(z.number()),
+	dependencies: z
+		.array(z.number())
+		.optional()
+		.transform(() => []),
 	status: z.string(),
 	subtasks: z.array(systemsSubtaskSchema)
 });

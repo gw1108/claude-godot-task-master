@@ -13,9 +13,9 @@ import {
  * These serve as the canonical source of truth for expected counts
  */
 export const EXPECTED_TOOL_COUNTS = {
-	core: 7,
-	standard: 14,
-	total: 45
+	core: 8,
+	standard: 15,
+	total: 46
 };
 
 /**
@@ -28,6 +28,7 @@ export const EXPECTED_CORE_TOOLS = [
 	'set_task_status',
 	'update_subtask',
 	'parse_prd',
+	'parse_systems',
 	'expand_task'
 ];
 

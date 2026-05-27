@@ -70,9 +70,9 @@ The `TASK_MASTER_TOOLS` environment variable controls which tools are loaded by 
 
 #### Configuration Options
 
-- **`core`** (default, or `lean`): Loads 7 essential tools (~5,000 tokens, 70% reduction)
+- **`core`** (default, or `lean`): Loads 8 essential tools (~5,000 tokens, 70% reduction)
   - Best for: Daily development with minimal token overhead
-  - Tools included: `get_tasks`, `next_task`, `get_task`, `set_task_status`, `update_subtask`, `parse_prd`, `expand_task`
+  - Tools included: `get_tasks`, `next_task`, `get_task`, `set_task_status`, `update_subtask`, `parse_prd`, `parse_systems`, `expand_task`
   - Use when: Working in large contexts where token usage is critical
   - Note: "lean" is an alias for "core" (same tools)
 
@@ -81,7 +81,7 @@ The `TASK_MASTER_TOOLS` environment variable controls which tools are loaded by 
   - Tools included: All core tools plus project initialization, complexity analysis, task generation, and more
   - Use when: You need a balanced set of features with reduced token usage
 
-- **`all`**: Loads all 36 available tools (~21,000 tokens)
+- **`all`**: Loads all 46 available tools (~21,000 tokens)
   - Best for: Users who need the complete feature set
   - Use when: Working with complex projects requiring all Task Master features
 

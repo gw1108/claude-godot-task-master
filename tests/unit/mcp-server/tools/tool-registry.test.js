@@ -16,12 +16,12 @@ import {
 
 describe('tool-registry', () => {
 	describe('tool tier structure', () => {
-		it('should have exactly 7 core tools', () => {
-			expect(coreTools.length).toBe(7);
+		it('should have exactly 8 core tools', () => {
+			expect(coreTools.length).toBe(8);
 		});
 
-		it('should have exactly 14 standard tools', () => {
-			expect(standardTools.length).toBe(14);
+		it('should have exactly 15 standard tools', () => {
+			expect(standardTools.length).toBe(15);
 		});
 
 		it('should have standardTools include all coreTools', () => {
@@ -47,9 +47,9 @@ describe('tool-registry', () => {
 	describe('getToolCounts', () => {
 		it('should return correct counts', () => {
 			const counts = getToolCounts();
-			expect(counts.core).toBe(7);
-			expect(counts.standard).toBe(14);
-			expect(counts.total).toBeGreaterThanOrEqual(14);
+			expect(counts.core).toBe(8);
+			expect(counts.standard).toBe(15);
+			expect(counts.total).toBeGreaterThanOrEqual(15);
 		});
 	});
 

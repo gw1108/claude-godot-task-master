@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import {
 	createTag,
@@ -6,14 +7,19 @@ import {
 	useTag
 } from '../../../scripts/modules/task-manager/tag-management.js';
 
-// Temporary workspace for each test run
-const TEMP_DIR = path.join(process.cwd(), '.tmp_tag_boundary');
-const TASKS_PATH = path.join(TEMP_DIR, 'tasks.json');
-const STATE_PATH = path.join(TEMP_DIR, '.taskmaster', 'state.json');
+// Temporary workspace for each test run. Created under os.tmpdir() (not the
+// repo root) so Windows file watchers/AV don't hold handles on these files,
+// which otherwise causes intermittent EPERM on atomic renames and rmSync.
+let TEMP_DIR;
+let TASKS_PATH;
+let STATE_PATH;
 
 function seedWorkspace() {
-	// Reset temp dir
-	fs.rmSync(TEMP_DIR, { recursive: true, force: true });
+	// Fresh, isolated temp dir per test
+	TEMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tm-tag-boundary-'));
+	TASKS_PATH = path.join(TEMP_DIR, 'tasks.json');
+	STATE_PATH = path.join(TEMP_DIR, '.taskmaster', 'state.json');
+
 	fs.mkdirSync(path.join(TEMP_DIR, '.taskmaster'), {
 		recursive: true,
 		force: true
@@ -49,7 +55,11 @@ function seedWorkspace() {
 
 describe('Tag boundary resolution', () => {
 	beforeEach(seedWorkspace);
-	afterAll(() => fs.rmSync(TEMP_DIR, { recursive: true, force: true }));
+	afterEach(() => {
+		if (TEMP_DIR && fs.existsSync(TEMP_DIR)) {
+			fs.rmSync(TEMP_DIR, { recursive: true, force: true });
+		}
+	});
 
 	it('switches currentTag in state.json when useTag succeeds', async () => {
 		await createTag(
