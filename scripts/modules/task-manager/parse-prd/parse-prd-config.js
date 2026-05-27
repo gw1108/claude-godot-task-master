@@ -65,6 +65,11 @@ export class PrdParseConfig {
 			options.streamingTimeout || Duration.seconds(180).milliseconds;
 		this.traceLevel = options.traceLevel ?? 'none';
 
+		// Parameterized for reuse by parse-systems and future doc-parsers
+		this.promptId = options.promptId || 'parse-prd';
+		this.responseSchema = options.responseSchema || prdResponseSchema;
+		this.commandName = options.commandName || 'parse-prd';
+
 		// Derived values
 		this.targetTag = this.tag || getCurrentTag(this.projectRoot) || 'master';
 		this.isMCP = !!this.mcpLog;

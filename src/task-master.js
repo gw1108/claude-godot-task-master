@@ -11,6 +11,7 @@ import {
 	COMPLEXITY_REPORT_FILE,
 	LEGACY_CONFIG_FILE,
 	LEGACY_TASKS_FILE,
+	SYSTEMS_FILE,
 	TASKMASTER_CONFIG_FILE,
 	TASKMASTER_DIR,
 	TASKMASTER_DOCS_DIR,
@@ -63,6 +64,13 @@ export class TaskMaster {
 	 */
 	getPrdPath() {
 		return this.#paths.prdPath;
+	}
+
+	/**
+	 * @returns {string|null} The absolute path to the systems design file.
+	 */
+	getSystemsPath() {
+		return this.#paths.systemsPath;
 	}
 
 	/**
@@ -324,6 +332,23 @@ export function initTaskMaster(overrides = {}) {
 				'prd.md',
 				'PRD.txt',
 				'prd.txt'
+			],
+			paths.projectRoot
+		);
+	}
+
+	if ('systemsPath' in overrides) {
+		paths.systemsPath = resolvePath(
+			'systems file',
+			overrides.systemsPath,
+			[
+				path.join(TASKMASTER_DOCS_DIR, 'systems.md'),
+				path.join(TASKMASTER_DOCS_DIR, 'Systems.md'),
+				path.join(TASKMASTER_DOCS_DIR, 'systems.txt'),
+				path.join('scripts', 'systems.md'),
+				path.join('scripts', 'systems.txt'),
+				'systems.md',
+				'systems.txt'
 			],
 			paths.projectRoot
 		);

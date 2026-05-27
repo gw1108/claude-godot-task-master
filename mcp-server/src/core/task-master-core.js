@@ -25,6 +25,7 @@ import { moveTaskCrossTagDirect } from './direct-functions/move-task-cross-tag.j
 import { moveTaskDirect } from './direct-functions/move-task.js';
 import { nextTaskDirect } from './direct-functions/next-task.js';
 import { parsePRDDirect } from './direct-functions/parse-prd.js';
+import { parseSystemsDirect } from './direct-functions/parse-systems.js';
 import { removeDependencyDirect } from './direct-functions/remove-dependency.js';
 import { removeSubtaskDirect } from './direct-functions/remove-subtask.js';
 import { removeTaskDirect } from './direct-functions/remove-task.js';
@@ -46,6 +47,7 @@ export { findTasksPath } from './utils/path-utils.js';
 export const directFunctions = new Map([
 	['getCacheStatsDirect', getCacheStatsDirect],
 	['parsePRDDirect', parsePRDDirect],
+	['parseSystemsDirect', parseSystemsDirect],
 	['updateTasksDirect', updateTasksDirect],
 	['updateTaskByIdDirect', updateTaskByIdDirect],
 	['updateSubtaskByIdDirect', updateSubtaskByIdDirect],
@@ -83,6 +85,7 @@ export const directFunctions = new Map([
 export {
 	getCacheStatsDirect,
 	parsePRDDirect,
+	parseSystemsDirect,
 	updateTasksDirect,
 	updateTaskByIdDirect,
 	updateSubtaskByIdDirect,

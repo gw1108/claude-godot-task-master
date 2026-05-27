@@ -273,7 +273,7 @@ export async function buildPrompts(config, prdContent, nextId) {
 	const defaultTaskPriority =
 		getDefaultPriority(config.projectRoot) || 'medium';
 
-	return promptManager.loadPrompt('parse-prd', {
+	return promptManager.loadPrompt(config.promptId, {
 		research: config.research,
 		numTasks: config.numTasks,
 		nextId,

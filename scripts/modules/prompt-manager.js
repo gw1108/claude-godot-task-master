@@ -27,6 +27,9 @@ import updateTaskPrompt from '../../src/prompts/update-task.json' with {
 import updateTasksPrompt from '../../src/prompts/update-tasks.json' with {
 	type: 'json'
 };
+import parseSystemsPrompt from '../../src/prompts/parse-systems.json' with {
+	type: 'json'
+};
 
 // Import schema for validation
 import promptTemplateSchema from '../../src/prompts/schemas/prompt-template.schema.json' with {
@@ -45,6 +48,7 @@ export class PromptManager {
 			['add-task', addTaskPrompt],
 			['research', researchPrompt],
 			['parse-prd', parsePrdPrompt],
+			['parse-systems', parseSystemsPrompt],
 			['update-task', updateTaskPrompt],
 			['update-tasks', updateTasksPrompt],
 			['update-subtask', updateSubtaskPrompt]

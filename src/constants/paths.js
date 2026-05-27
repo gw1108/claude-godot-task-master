@@ -24,6 +24,10 @@ export const LEGACY_COMPLEXITY_REPORT_FILE =
 export const PRD_FILE = '.taskmaster/docs/prd.txt';
 export const LEGACY_PRD_FILE = 'scripts/prd.txt';
 
+// Task Master Systems design file paths
+export const SYSTEMS_FILE = '.taskmaster/docs/systems.md';
+export const LEGACY_SYSTEMS_FILE = 'scripts/systems.md';
+
 // Task Master template files
 export const EXAMPLE_PRD_FILE = '.taskmaster/templates/example_prd.txt';
 export const LEGACY_EXAMPLE_PRD_FILE = 'scripts/example_prd.txt';

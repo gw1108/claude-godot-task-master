@@ -33,6 +33,7 @@ import {
 	migrateProject,
 	moveTask,
 	parsePRD,
+	parseSystems,
 	removeSubtask,
 	removeTask,
 	scopeDownTask,
@@ -1169,6 +1170,134 @@ function registerCommands(programInstance) {
 				}
 			} catch (error) {
 				console.error(chalk.red(`Error parsing PRD: ${error.message}`));
+				process.exit(1);
+			}
+		});
+
+	// parse-systems command
+	programInstance
+		.command('parse-systems')
+		.description(
+			'Parse a systems design document and generate tasks (one task per ### section, with subtasks)'
+		)
+		.argument('[file]', 'Path to the systems design document')
+		.option(
+			'-i, --input <file>',
+			'Path to the systems design document (alternative to positional argument)'
+		)
+		.option('-o, --output <file>', 'Output file path')
+		.option('-f, --force', 'Skip confirmation when overwriting existing tasks')
+		.option(
+			'--append',
+			'Append new tasks to existing tasks.json instead of overwriting'
+		)
+		.option(
+			'-r, --research',
+			'Use Perplexity AI for research-backed task generation'
+		)
+		.option('--tag <tag>', 'Specify tag context for task operations')
+		.addOption(
+			new Option(
+				'--tracelevel <level>',
+				'Trace verbosity: none | verbose (dump LLM response) | trace (also dump prompt)'
+			)
+				.choices(['none', 'verbose', 'trace'])
+				.default('none')
+		)
+		.action(async (file, options) => {
+			// Resolve systems path: prioritize --input option, then positional argument
+			const systemsFilePath = options.input || file;
+
+			// Initialize TaskMaster
+			let taskMaster;
+			try {
+				const initOptions = {
+					systemsPath: systemsFilePath || true,
+					tag: options.tag
+				};
+				if (options.output) {
+					initOptions.tasksPath = options.output;
+				}
+				taskMaster = initTaskMaster(initOptions);
+			} catch (error) {
+				console.error(chalk.red(`Error: ${error.message}`));
+				process.exit(1);
+			}
+
+			const projectRoot = taskMaster.getProjectRoot();
+			const tag = taskMaster.getCurrentTag();
+			const force = options.force || false;
+			const append = options.append || false;
+			const research = options.research || false;
+			let useForce = force;
+			const useAppend = append;
+
+			// Resolve output path
+			const outputPath =
+				taskMaster.getTasksPath() ||
+				path.join(projectRoot, TASKMASTER_TASKS_FILE);
+
+			// Inline confirmation helper (mirrors parse-prd's confirmOverwriteIfNeeded)
+			async function confirmSystemsOverwriteIfNeeded() {
+				let hasExistingTasksInTag = false;
+				const tasksPath = outputPath;
+				if (fs.existsSync(tasksPath)) {
+					try {
+						const existingFileContent = fs.readFileSync(tasksPath, 'utf8');
+						const allData = JSON.parse(existingFileContent);
+						if (
+							allData[tag] &&
+							Array.isArray(allData[tag].tasks) &&
+							allData[tag].tasks.length > 0
+						) {
+							hasExistingTasksInTag = true;
+						}
+					} catch (_error) {
+						hasExistingTasksInTag = false;
+					}
+				}
+
+				if (hasExistingTasksInTag && !useForce && !useAppend) {
+					const overwrite = await confirmTaskOverwrite(tasksPath);
+					if (!overwrite) {
+						log('info', 'Operation cancelled.');
+						return false;
+					}
+					useForce = true;
+				}
+				return true;
+			}
+
+			try {
+				if (!(await confirmSystemsOverwriteIfNeeded())) return;
+
+				console.log(
+					chalk.blue(`Parsing systems document: ${taskMaster.getSystemsPath()}`)
+				);
+				if (append) {
+					console.log(chalk.blue('Appending to existing tasks...'));
+				}
+				if (research) {
+					console.log(
+						chalk.blue(
+							'Using Perplexity AI for research-backed task generation'
+						)
+					);
+				}
+
+				await parseSystems(taskMaster.getSystemsPath(), outputPath, {
+					append: useAppend,
+					force: useForce,
+					research: research,
+					projectRoot,
+					tag,
+					traceLevel: options.tracelevel ?? 'none'
+				});
+			} catch (error) {
+				console.error(
+					chalk.red(`Error parsing systems document: ${error.message}`)
+				);
+				if (getDebugFlag(projectRoot)) console.error(error);
 				process.exit(1);
 			}
 		});

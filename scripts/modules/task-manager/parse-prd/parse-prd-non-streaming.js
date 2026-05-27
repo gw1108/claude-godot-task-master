@@ -4,7 +4,7 @@
 
 import ora from 'ora';
 import { generateObjectService } from '../../ai-services-unified.js';
-import { LoggingConfig, prdResponseSchema } from './parse-prd-config.js';
+import { LoggingConfig } from './parse-prd-config.js';
 import { estimateTokens } from './parse-prd-helpers.js';
 
 /**
@@ -21,7 +21,9 @@ export async function handleNonStreamingService(config, prompts) {
 	// Initialize spinner for CLI
 	let spinner = null;
 	if (config.outputFormat === 'text' && !config.isMCP) {
-		spinner = ora('Parsing PRD and generating tasks...\n').start();
+		spinner = ora(
+			`Parsing document and generating tasks (${config.commandName})...\n`
+		).start();
 	}
 
 	try {
@@ -35,11 +37,11 @@ export async function handleNonStreamingService(config, prompts) {
 			role: config.research ? 'research' : 'main',
 			session: config.session,
 			projectRoot: config.projectRoot,
-			schema: prdResponseSchema,
+			schema: config.responseSchema,
 			objectName: 'tasks_data',
 			systemPrompt,
 			prompt: userPrompt,
-			commandName: 'parse-prd',
+			commandName: config.commandName,
 			outputType: config.isMCP ? 'mcp' : 'cli'
 		});
 

@@ -21,6 +21,7 @@ import { registerModelsTool } from './models.js';
 import { registerMoveTaskTool } from './move-task.js';
 import { registerNextTaskTool } from './next-task.js';
 import { registerParsePRDTool } from './parse-prd.js';
+import { registerParseSystemsTool } from './parse-systems.js';
 import { registerRemoveDependencyTool } from './remove-dependency.js';
 import { registerRemoveSubtaskTool } from './remove-subtask.js';
 import { registerRemoveTaskTool } from './remove-task.js';
@@ -62,6 +63,7 @@ export const toolRegistry = {
 	models: registerModelsTool,
 	rules: registerRulesTool,
 	parse_prd: registerParsePRDTool,
+	parse_systems: registerParseSystemsTool,
 	'response-language': registerResponseLanguageTool,
 	analyze_project_complexity: registerAnalyzeProjectComplexityTool,
 	expand_task: registerExpandTaskTool,
@@ -116,6 +118,7 @@ export const coreTools = [
 	'set_task_status',
 	'update_subtask',
 	'parse_prd',
+	'parse_systems',
 	'expand_task'
 ];
 

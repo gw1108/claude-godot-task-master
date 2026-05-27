@@ -15,6 +15,7 @@ import listTasks from './task-manager/list-tasks.js';
 import { migrateProject } from './task-manager/migrate.js';
 import moveTask from './task-manager/move-task.js';
 import parsePRD from './task-manager/parse-prd/index.js';
+import parseSystems from './task-manager/parse-systems/index.js';
 import removeSubtask from './task-manager/remove-subtask.js';
 import removeTask from './task-manager/remove-task.js';
 import { performResearch } from './task-manager/research.js';
@@ -36,6 +37,7 @@ import { readComplexityReport } from './utils.js';
 // Export task manager functions
 export {
 	parsePRD,
+	parseSystems,
 	updateTasks,
 	updateTaskById,
 	updateSubtaskById,

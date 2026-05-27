@@ -69,10 +69,10 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 
 		if (config.traceLevel === 'trace') {
 			const dumpDir = path.join(config.projectRoot, '.taskmaster', 'reports');
-			const dumpPath = path.join(dumpDir, 'parse-prd-prompt.md');
+			const dumpPath = path.join(dumpDir, `${config.commandName}-prompt.md`);
 			const meta = prompts.metadata ?? {};
 			const content = [
-				'# parse-prd Prompt Trace',
+				`# ${config.commandName} Prompt Trace`,
 				'',
 				'## Metadata',
 				`- **timestamp:** ${new Date().toISOString()}`,
@@ -96,7 +96,9 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 			].join('\n');
 			await mkdir(dumpDir, { recursive: true });
 			await writeFile(dumpPath, content, 'utf-8');
-			logger.report(`[parse-prd] Prompt trace written to ${dumpPath}`);
+			logger.report(
+				`[${config.commandName}] Prompt trace written to ${dumpPath}`
+			);
 		}
 
 		// Call the appropriate service handler
@@ -108,7 +110,7 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 
 		if (config.traceLevel === 'verbose' || config.traceLevel === 'trace') {
 			const dumpDir = path.join(config.projectRoot, '.taskmaster', 'reports');
-			const dumpPath = path.join(dumpDir, 'parse-prd-prompt.md');
+			const dumpPath = path.join(dumpDir, `${config.commandName}-prompt.md`);
 			const rawText = serviceResult.aiServiceResponse?.rawResponseText;
 			const responseBody =
 				rawText != null
@@ -134,7 +136,9 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 			} else {
 				await writeFile(dumpPath, responseContent, 'utf-8');
 			}
-			logger.report(`[parse-prd] Response trace written to ${dumpPath}`);
+			logger.report(
+				`[${config.commandName}] Response trace written to ${dumpPath}`
+			);
 		}
 
 		// Process tasks
@@ -171,7 +175,7 @@ async function parsePRDCore(config, serviceHandler, isStreaming) {
 			tagInfo: serviceResult.aiServiceResponse?.tagInfo
 		};
 	} catch (error) {
-		logger.report(`Error parsing PRD: ${error.message}`, 'error');
+		logger.report(`Error in ${config.commandName}: ${error.message}`, 'error');
 
 		if (!config.isMCP) {
 			console.error(chalk.red(`Error: ${error.message}`));
@@ -250,6 +254,8 @@ async function handleCompletionReporting(
 		}
 	}
 }
+
+export { parsePRDCore };
 
 /**
  * Parse PRD with streaming progress reporting
