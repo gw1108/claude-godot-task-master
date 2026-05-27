@@ -1,5 +1,95 @@
 # task-master-ai
 
+## 1.0.0
+
+### Major Changes
+
+- [#1632](https://github.com/eyaltoledano/claude-task-master/pull/1632) [`3d84023`](https://github.com/eyaltoledano/claude-task-master/commit/3d8402321496ec587890ea59469cdb0c6d51d173) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - AI-powered cluster generation — no empty state, just intelligence
+
+  There's no such thing as an empty execution plan. When `tm clusters` detects no inter-tag dependencies, it doesn't error — it offers to build them for you. AI analyzes every tag in parallel, understands what each one does, and synthesizes the dependency graph that connects them into a coherent execution order.
+  - **Zero-config generation** — run `tm clusters` with no dependencies defined and Taskmaster asks if you'd like AI to figure it out
+  - **`tm clusters generate`** — explicitly trigger AI-powered dependency analysis across all tags
+  - **Interactive review** — an in-terminal editor lets you inspect, reorder, and accept or reject the suggested cluster layout before anything is saved
+  - **`--auto`** — skip the editor and accept AI suggestions directly (ideal for CI or scripted workflows)
+  - **Analysis caching** — re-runs skip already-analyzed tags, so iterating is fast and cost-efficient
+
+- [#1628](https://github.com/eyaltoledano/claude-task-master/pull/1628) [`93ef197`](https://github.com/eyaltoledano/claude-task-master/commit/93ef197a164f29d0e445f7ea8f154b5c9b410aa8) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - Introduce Execution Phases — manage what gets built and in what order
+
+  Taskmaster now understands your project's execution topology. Instead of a flat task list, your tags are automatically organized into **execution phases** — groups of work that can run in parallel, sequenced by their dependencies.
+
+  This is the foundation for Taskmaster 1.0's autonomous execution: think at the tag level, not the task level.
+
+  New capabilities:
+  - **`task-master clusters`** — visualize your execution plan as phases, with parallel lanes showing what runs concurrently
+  - **`task-master clusters --tag <tag>`** — drill into any tag to see task-level execution order within it
+  - **Execution Pipeline in `task-master list`** — see per-cluster progress at a glance with lane-based visualization
+  - **Inter-tag dependencies** — tags can now depend on other tags, with automatic circular dependency detection
+  - **Mermaid diagram export** (`--diagram mermaid`) — share your execution plan as a visual dependency graph
+
+- [#1630](https://github.com/eyaltoledano/claude-task-master/pull/1630) [`f991234`](https://github.com/eyaltoledano/claude-task-master/commit/f99123418e78ce6412321a35822fcc24a442ea3d) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - Agent teams — execute entire tags without babysitting
+
+  Each tag (a parsed PRD's task list) can now be executed end-to-end by an AI agent team. `tm clusters start` builds an execution plan from the tag's dependency graph and launches a Claude Code teams session — sub-agents work through task clusters in parallel, level by level, while you make your coffee.
+
+  **`tm clusters start [--tag <tag>]`** — execute a tag's task graph autonomously via Claude Code agent teams
+  - **Checkpoint & resume** — interrupted sessions save automatically; pick up where you left off with `--resume`
+  - **Dry run** — preview the full execution plan before committing with `--dry-run`
+  - **Parallel tuning** — control concurrency with `--parallel <n>` (default: 5 tasks per level)
+
+  For the best experience, open iTerm2, run `tmux -CC` (control mode), then `tm clusters start`. This gives agent teams native pane management for parallel execution.
+
+### Minor Changes
+
+- [#1652](https://github.com/eyaltoledano/claude-task-master/pull/1652) [`13d672d`](https://github.com/eyaltoledano/claude-task-master/commit/13d672d61889188428ce58c5cae4a8018ce0e2b3) Thanks [@octo-patch](https://github.com/octo-patch)! - Add MiniMax as a first-class AI provider, enabling MiniMax-M2.5 and MiniMax-M2.5-highspeed models for main, research, and fallback roles
+
+- [`3e7a89e`](https://github.com/eyaltoledano/claude-task-master/commit/3e7a89ee41c1c48cc4197aa039007330b589a80d) Thanks [@gw1108](https://github.com/gw1108)! - `task-master loop` now writes its progress files as Markdown. The default progress file is `.taskmaster/progress.md` (was `progress.txt`), and the per-iteration (`progress.iter-N.md`) and totals (`progress.totals.md`) siblings follow the same extension. The per-iteration files are also more human-readable: each gets a proper `# Iteration N` title with clean `## Prompt sent to Claude`, `### \`tool\` input/result`, and `## Summary`sections, and the noisy per-line`[VERBOSE]`/`[TRACE]` prefixes have been removed in favor of plain Markdown. The main progress file header and the "Loop Complete" footer now render as proper Markdown lists instead of stacked headings.
+
+  Pass `--progress-file <path>` to override the default; the git-exclude logic that keeps these generated files out of loop commits now derives from the file's actual extension, so custom extensions work too.
+
+- [`3b6ca37`](https://github.com/eyaltoledano/claude-task-master/commit/3b6ca3725d88302cd2374f65657269c925cc631e) Thanks [@gw1108](https://github.com/gw1108)! - `task-master loop` now accepts a `--session-persistence <true|false>` flag. The default is `false`, which appends `--no-session-persistence` to every claude invocation so loop iterations do not pollute `claude --resume` history. Pass `--session-persistence true` to opt back in to session persistence. Invalid values (anything other than the literal strings `"true"` or `"false"`) are rejected at parse time. A new MCP `loop` tool exposes the same full parameter surface (prompt, iterations, sleepSeconds, sandbox, traceLevel, includeOutput, sessionPersistence, progressFile, tag) for programmatic control over loop execution. Requires a recent version of `claude` CLI that supports `--no-session-persistence` (available in claude with `--print` support).
+
+- [`4acc1b4`](https://github.com/eyaltoledano/claude-task-master/commit/4acc1b4d9923549440b73bff5b86fcfd8ae3b49b) Thanks [@gw1108](https://github.com/gw1108)! - `task-master loop` now reports total elapsed time in the final "Loop Complete" summary so you can see how long a full run took without scrolling for timestamps. When `--verbose` is enabled, the loop also prints ISO timestamps at the start and end of the run for precise wall-clock tracking. The total duration is also recorded in the progress file footer.
+
+- [`36956d9`](https://github.com/eyaltoledano/claude-task-master/commit/36956d9c15efd138e9c3dfbbcd440c18a79b0f21) Thanks [@gw1108](https://github.com/gw1108)! - Add a `--trace` flag to `task-master loop` for deep visibility into each iteration. Trace mode keeps everything `--verbose` already shows (streamed text and tool-call names) and additionally prints the full prompt sent to the LLM, the input parameters and result content for each tool call, and a per-iteration tool-call summary (e.g. `Bash: 3, Edit: 1`). Use `--verbose` for routine monitoring and `--trace` when debugging why a loop iteration behaved a particular way. Not compatible with `--sandbox`.
+
+- [`9afa31f`](https://github.com/eyaltoledano/claude-task-master/commit/9afa31fee539112f3c290d7bcb9b4e608a932192) Thanks [@gw1108](https://github.com/gw1108)! - Extend `task-master loop --trace` with a per-iteration token-usage snapshot — input, output, prompt-cache write/read, and total — sourced from the stream-json `result` event's `usage` field. Helps you see exactly what each iteration cost when tuning loop prompts. Older Claude CLI versions or aborted runs (no usage payload) gracefully skip the snapshot.
+
+- [`3b6ca37`](https://github.com/eyaltoledano/claude-task-master/commit/3b6ca3725d88302cd2374f65657269c925cc631e) Thanks [@gw1108](https://github.com/gw1108)! - `task-master loop` now uses a single `--tracelevel <none|verbose|trace>` option instead of the two separate `--verbose` and `--trace` flags. `--tracelevel verbose` matches the old `--verbose` behavior; `--tracelevel trace` matches the old `--trace` behavior (which also implied verbose streaming). The default is `--tracelevel none`. Invalid values are rejected at parse time with a helpful error listing the allowed choices.
+
+- [`681c5b7`](https://github.com/eyaltoledano/claude-task-master/commit/681c5b7127cd89f8dc6b28ecdc2d42d7da550055) Thanks [@gw1108](https://github.com/gw1108)! - Add `--analyze-complexity` to `task-master parse-prd` (and `analyzeComplexity` to the `parse_prd` MCP tool). When set, complexity analysis runs automatically on the generated tasks. The CLI also renders a 1–10 score histogram plus a Low/Medium/High summary; the MCP tool returns the summary in the response. Use `--complexity-threshold <n>` (or `complexityThreshold`) to override the default expansion threshold of 5. In `--append` mode, only newly-added tasks are analyzed. Research mode is inherited from `-r/--research`; if the analysis step fails, parse-prd still succeeds and prints a warning.
+
+### Patch Changes
+
+- [#1623](https://github.com/eyaltoledano/claude-task-master/pull/1623) [`a1c0161`](https://github.com/eyaltoledano/claude-task-master/commit/a1c0161e6be50340bf18ea5addefd25dea107e77) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Nudge task expansion toward subtask independence and critical path reduction instead of serial ordering
+
+- [#1635](https://github.com/eyaltoledano/claude-task-master/pull/1635) [`e799e62`](https://github.com/eyaltoledano/claude-task-master/commit/e799e62408e61679c14981f945a3b5391f5e7429) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Fix Claude Code CLI detection for native binary installations and update install instructions to reference official documentation
+
+- [#1645](https://github.com/eyaltoledano/claude-task-master/pull/1645) [`efe2f56`](https://github.com/eyaltoledano/claude-task-master/commit/efe2f569951e4ae5cfb5d71d27df0ff74b028103) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Fix complexity report losing results when running analyze-complexity with --from/--to ranges multiple times. Previous entries outside the current analysis range are now preserved across runs.
+
+- [`4b72546`](https://github.com/eyaltoledano/claude-task-master/commit/4b7254640704bc8b3157d6cb1b0412b60fec530e) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Fix FileStorage resource leaks by ensuring close() is called in try/finally blocks
+
+- [`c1ee140`](https://github.com/eyaltoledano/claude-task-master/commit/c1ee1402fcdc0886ea5681f54ad86ee9fee2b8ac) Thanks [@gw1108](https://github.com/gw1108)! - Fix markdown rendering corruption when task details contain angle brackets (e.g. JSX/TSX such as `<Navigate to="/" replace />`) inside fenced code blocks. HTML detection now ignores content inside code blocks, so code samples are no longer mangled by the HTML-to-Markdown converter.
+
+- [`eaa62d3`](https://github.com/eyaltoledano/claude-task-master/commit/eaa62d3486340e2d806e927e0605e4f536c5f885) Thanks [@gw1108](https://github.com/gw1108)! - Fix MCP tool responses returning the wrong active tag when a `tag` argument is passed explicitly. Tools like `next_task`, `add_task`, `update_task`, `update_subtask`, `expand_task`, `remove_task`, `move_task` and others now report the requested tag in their response payload instead of falling back to `currentTag` from `.taskmaster/state.json`. Resolves #1683 (and related symptom in #1638).
+
+- [#1653](https://github.com/eyaltoledano/claude-task-master/pull/1653) [`8086ff7`](https://github.com/eyaltoledano/claude-task-master/commit/8086ff7307ec0cc44e2528af8a9783187b80fe89) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - Fix CLI using the wrong project's brief context when running in solo-mode repos. Previously, if you were logged into Hamster in one project and then ran Task Master in a different project, it would incorrectly use the previous project's brief context. Brief/org selection is now scoped per workspace (`~/.taskmaster/{projectId}/context.json`) instead of stored globally. Auth tokens remain global as intended — you stay logged in across repos, but each workspace gets its own brief context. Projects with local task files also get an additional safeguard to always prefer file storage.
+
+- [#1691](https://github.com/eyaltoledano/claude-task-master/pull/1691) [`c0c98d3`](https://github.com/eyaltoledano/claude-task-master/commit/c0c98d367c55296bfe69e65680625b6db437af02) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - Fix `task-master sync-readme` generating links to the retired `task-master.dev` domain. Exported READMEs now link to `https://tryhamster.com/product/taskmaster`.
+
+- [#1597](https://github.com/eyaltoledano/claude-task-master/pull/1597) [`0c1e969`](https://github.com/eyaltoledano/claude-task-master/commit/0c1e969489d853920a4623bd71fa53bb9033ea4c) Thanks [@bjcoombs](https://github.com/bjcoombs)! - Enhanced help documentation sync test to verify subcommand structure and improve test maintainability
+
+  This changeset adds comprehensive help documentation sync tests that verify:
+  - Tags subcommand documentation matches the new 'tags add/use/remove' structure
+  - Deprecated tag commands (add-tag, use-tag, delete-tag) are not documented
+  - List command options are properly documented with all variants
+
+  Also includes minor fixes:
+  - Updated 'tags add' command args to include missing --from-branch option
+  - Added clarifying comments for legacy command mappings during migration
+
+- [#1629](https://github.com/eyaltoledano/claude-task-master/pull/1629) [`0ab142c`](https://github.com/eyaltoledano/claude-task-master/commit/0ab142c6b0462051c8167a08aefd242e1c341bae) Thanks [@Crunchyman-ralph](https://github.com/Crunchyman-ralph)! - Fix module not found error
+
+- [`c896c5e`](https://github.com/eyaltoledano/claude-task-master/commit/c896c5ee850c9febb8dd4197f775e306604ca9f2) Thanks [@gw1108](https://github.com/gw1108)! - Remove the per-iteration `SETUP: If task-master command not found...` line from the default loop preset and verify `task-master` is on PATH once before the loop starts. Saves tokens on every iteration and surfaces missing installs immediately with a clear install hint, instead of asking the LLM to install in mid-prompt.
+
 ## 1.0.0-rc.2
 
 ### Minor Changes
