@@ -52,5 +52,5 @@
 			"*": ["src/*"]
 		}
 	},
-	"version": ""
+	"version": null
 }
