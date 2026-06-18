@@ -1,4 +1,4 @@
-/**
+﻿/**
  * commands.js
  * Command-line interface for the Task Master CLI
  */
@@ -3849,10 +3849,6 @@ ${result.result}
 			'Allow setting a custom Vertex AI model ID (use with --set-*) '
 		)
 		.option(
-			'--gemini-cli',
-			'Allow setting a Gemini CLI model ID (use with --set-*)'
-		)
-		.option(
 			'--codex-cli',
 			'Allow setting a Codex CLI model ID (use with --set-*)'
 		)
@@ -3882,7 +3878,6 @@ Examples:
   $ task-master models --set-main sonnet --claude-code           # Set Claude Code model for main role
   $ task-master models --set-main gpt-4o --azure # Set custom Azure OpenAI model for main role
   $ task-master models --set-main claude-3-5-sonnet@20241022 --vertex # Set custom Vertex AI model for main role
-  $ task-master models --set-main gemini-2.5-pro --gemini-cli # Set Gemini CLI model for main role
   $ task-master models --set-main gpt-5-codex --codex-cli     # Set Codex CLI model for main role
   $ task-master models --set-main qwen3-vl-4b --lmstudio      # Set LM Studio model for main role (defaults to http://localhost:1234/v1)
   $ task-master models --set-main qwen3-vl-4b --lmstudio --baseURL http://localhost:8000/v1 # Set LM Studio model with custom base URL
@@ -3903,7 +3898,6 @@ Examples:
 				options.ollama,
 				options.bedrock,
 				options.claudeCode,
-				options.geminiCli,
 				options.codexCli,
 				options.lmstudio,
 				options.openaiCompatible
@@ -3911,7 +3905,7 @@ Examples:
 			if (providerFlags > 1) {
 				console.error(
 					chalk.red(
-						'Error: Cannot use multiple provider flags (--openrouter, --ollama, --bedrock, --claude-code, --gemini-cli, --codex-cli, --lmstudio, --openai-compatible) simultaneously.'
+						'Error: Cannot use multiple provider flags (--openrouter, --ollama, --bedrock, --claude-code, --codex-cli, --lmstudio, --openai-compatible) simultaneously.'
 					)
 				);
 				process.exit(1);
@@ -3955,15 +3949,13 @@ Examples:
 									? 'bedrock'
 									: options.claudeCode
 										? 'claude-code'
-										: options.geminiCli
-											? 'gemini-cli'
-											: options.codexCli
-												? 'codex-cli'
-												: options.lmstudio
-													? 'lmstudio'
-													: options.openaiCompatible
-														? 'openai-compatible'
-														: undefined,
+										: options.codexCli
+											? 'codex-cli'
+											: options.lmstudio
+												? 'lmstudio'
+												: options.openaiCompatible
+													? 'openai-compatible'
+													: undefined,
 						baseURL: options.baseURL
 					});
 					if (result.success) {
@@ -3988,15 +3980,13 @@ Examples:
 									? 'bedrock'
 									: options.claudeCode
 										? 'claude-code'
-										: options.geminiCli
-											? 'gemini-cli'
-											: options.codexCli
-												? 'codex-cli'
-												: options.lmstudio
-													? 'lmstudio'
-													: options.openaiCompatible
-														? 'openai-compatible'
-														: undefined,
+										: options.codexCli
+											? 'codex-cli'
+											: options.lmstudio
+												? 'lmstudio'
+												: options.openaiCompatible
+													? 'openai-compatible'
+													: undefined,
 						baseURL: options.baseURL
 					});
 					if (result.success) {
@@ -4023,15 +4013,13 @@ Examples:
 									? 'bedrock'
 									: options.claudeCode
 										? 'claude-code'
-										: options.geminiCli
-											? 'gemini-cli'
-											: options.codexCli
-												? 'codex-cli'
-												: options.lmstudio
-													? 'lmstudio'
-													: options.openaiCompatible
-														? 'openai-compatible'
-														: undefined,
+										: options.codexCli
+											? 'codex-cli'
+											: options.lmstudio
+												? 'lmstudio'
+												: options.openaiCompatible
+													? 'openai-compatible'
+													: undefined,
 						baseURL: options.baseURL
 					});
 					if (result.success) {

@@ -610,7 +610,6 @@ function hasCodebaseAnalysis(
 
 	return (
 		currentProvider === CUSTOM_PROVIDERS.CLAUDE_CODE ||
-		currentProvider === CUSTOM_PROVIDERS.GEMINI_CLI ||
 		currentProvider === CUSTOM_PROVIDERS.GROK_CLI ||
 		currentProvider === CUSTOM_PROVIDERS.CODEX_CLI
 	);
@@ -872,7 +871,6 @@ function isApiKeySet(providerName, session = null, projectRoot = null) {
 	const providersWithoutApiKeys = [
 		CUSTOM_PROVIDERS.OLLAMA,
 		CUSTOM_PROVIDERS.BEDROCK,
-		CUSTOM_PROVIDERS.GEMINI_CLI,
 		CUSTOM_PROVIDERS.GROK_CLI,
 		CUSTOM_PROVIDERS.MCP,
 		CUSTOM_PROVIDERS.CODEX_CLI
@@ -1247,7 +1245,6 @@ async function getOperatingMode(explicitMode) {
 export const providersWithoutApiKeys = [
 	CUSTOM_PROVIDERS.OLLAMA,
 	CUSTOM_PROVIDERS.BEDROCK,
-	CUSTOM_PROVIDERS.GEMINI_CLI,
 	CUSTOM_PROVIDERS.GROK_CLI,
 	CUSTOM_PROVIDERS.MCP,
 	CUSTOM_PROVIDERS.CODEX_CLI

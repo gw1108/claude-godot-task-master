@@ -122,7 +122,7 @@ jest.unstable_mockModule('../../scripts/modules/config-manager.js', () => ({
 	getMcpApiKeyStatus: mockGetMcpApiKeyStatus,
 
 	// Providers without API keys
-	providersWithoutApiKeys: ['ollama', 'bedrock', 'gemini-cli', 'codex-cli']
+	providersWithoutApiKeys: ['ollama', 'bedrock', 'codex-cli']
 }));
 
 // Mock AI Provider Classes with proper methods
@@ -232,13 +232,6 @@ jest.unstable_mockModule('../../src/ai-providers/index.js', () => ({
 		isRequiredApiKey: jest.fn(() => false)
 	})),
 	ClaudeCodeProvider: jest.fn(() => mockClaudeProvider),
-	GeminiCliProvider: jest.fn(() => ({
-		generateText: jest.fn(),
-		streamText: jest.fn(),
-		generateObject: jest.fn(),
-		getRequiredApiKeyName: jest.fn(() => 'GEMINI_API_KEY'),
-		isRequiredApiKey: jest.fn(() => false)
-	})),
 	CodexCliProvider: jest.fn(() => mockCodexProvider),
 	GrokCliProvider: jest.fn(() => ({
 		generateText: jest.fn(),

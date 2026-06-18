@@ -195,53 +195,6 @@
 			"supported": true
 		}
 	],
-	"gemini-cli": [
-		{
-			"id": "gemini-3-flash-preview",
-			"name": "Gemini 3 Flash",
-			"swe_score": 0,
-			"cost_per_1m_tokens": {
-				"input": 0,
-				"output": 0
-			},
-			"allowed_roles": ["main", "fallback", "research"],
-			"max_tokens": 1048576,
-			"supported": true
-		},
-		{
-			"id": "gemini-3-pro-preview",
-			"swe_score": 0.762,
-			"cost_per_1m_tokens": {
-				"input": 0,
-				"output": 0
-			},
-			"allowed_roles": ["main", "fallback", "research"],
-			"max_tokens": 65536,
-			"supported": true
-		},
-		{
-			"id": "gemini-2.5-pro",
-			"swe_score": 0.72,
-			"cost_per_1m_tokens": {
-				"input": 0,
-				"output": 0
-			},
-			"allowed_roles": ["main", "fallback", "research"],
-			"max_tokens": 65536,
-			"supported": true
-		},
-		{
-			"id": "gemini-2.5-flash",
-			"swe_score": 0.71,
-			"cost_per_1m_tokens": {
-				"input": 0,
-				"output": 0
-			},
-			"allowed_roles": ["main", "fallback", "research"],
-			"max_tokens": 65536,
-			"supported": true
-		}
-	],
 	"grok-cli": [
 		{
 			"id": "grok-4-latest",

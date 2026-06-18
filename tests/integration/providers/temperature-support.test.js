@@ -15,7 +15,6 @@ import { AzureProvider } from '../../../src/ai-providers/azure.js';
 import { BedrockAIProvider } from '../../../src/ai-providers/bedrock.js';
 import { ClaudeCodeProvider } from '../../../src/ai-providers/claude-code.js';
 import { CodexCliProvider } from '../../../src/ai-providers/codex-cli.js';
-import { GeminiCliProvider } from '../../../src/ai-providers/gemini-cli.js';
 import { VertexAIProvider } from '../../../src/ai-providers/google-vertex.js';
 import { GoogleAIProvider } from '../../../src/ai-providers/google.js';
 import { GrokCliProvider } from '../../../src/ai-providers/grok-cli.js';
@@ -31,7 +30,6 @@ describe('Provider Temperature Support', () => {
 		it('should verify CLI providers have supportsTemperature = false', () => {
 			expect(new ClaudeCodeProvider().supportsTemperature).toBe(false);
 			expect(new CodexCliProvider().supportsTemperature).toBe(false);
-			expect(new GeminiCliProvider().supportsTemperature).toBe(false);
 			expect(new GrokCliProvider().supportsTemperature).toBe(false);
 		});
 	});

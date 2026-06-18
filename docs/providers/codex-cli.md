@@ -510,6 +510,5 @@ To verify or configure:
 
 - [Configuration Guide](../configuration.md#codex-cli-provider) - Complete Codex CLI configuration reference
 - [Command Reference](../command-reference.md) - Using `--codex-cli` flag with commands
-- [Gemini CLI Provider](./gemini-cli.md) - Similar CLI-based provider for Google Gemini
 - [Claude Code Integration](../claude-code-integration.md) - Another CLI-based provider
 - [ai-sdk-provider-codex-cli](https://github.com/ben-vargas/ai-sdk-provider-codex-cli) - Source code for the provider package

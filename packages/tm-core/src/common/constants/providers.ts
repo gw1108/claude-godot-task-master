@@ -34,7 +34,6 @@ export const CUSTOM_PROVIDERS = {
 	OPENAI_COMPATIBLE: 'openai-compatible',
 	CLAUDE_CODE: 'claude-code',
 	MCP: 'mcp',
-	GEMINI_CLI: 'gemini-cli',
 	GROK_CLI: 'grok-cli',
 	CODEX_CLI: 'codex-cli'
 } as const;

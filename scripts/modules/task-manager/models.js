@@ -583,24 +583,6 @@ async function setModel(role, modelId, options = {}) {
 					determinedProvider = CUSTOM_PROVIDERS.VERTEX;
 					warningMessage = `Warning: Custom Vertex AI model '${modelId}' set. Please ensure the model is valid and accessible in your Google Cloud project.`;
 					report('warn', warningMessage);
-				} else if (providerHint === CUSTOM_PROVIDERS.GEMINI_CLI) {
-					// Gemini CLI provider - check if model exists in our list
-					determinedProvider = CUSTOM_PROVIDERS.GEMINI_CLI;
-					// Re-find modelData specifically for gemini-cli provider
-					const geminiCliModels = availableModels.filter(
-						(m) => m.provider === 'gemini-cli'
-					);
-					const geminiCliModelData = geminiCliModels.find(
-						(m) => m.id === modelId
-					);
-					if (geminiCliModelData) {
-						// Update modelData to the found gemini-cli model
-						modelData = geminiCliModelData;
-						report('info', `Setting Gemini CLI model '${modelId}'.`);
-					} else {
-						warningMessage = `Warning: Gemini CLI model '${modelId}' not found in supported models. Setting without validation.`;
-						report('warn', warningMessage);
-					}
 				} else if (providerHint === CUSTOM_PROVIDERS.CODEX_CLI) {
 					// Codex CLI provider - enforce supported model list
 					determinedProvider = CUSTOM_PROVIDERS.CODEX_CLI;
@@ -693,7 +675,7 @@ async function setModel(role, modelId, options = {}) {
 					success: false,
 					error: {
 						code: 'MODEL_NOT_FOUND_NO_HINT',
-						message: `Model ID "${modelId}" not found in Taskmaster's supported models. If this is a custom model, please specify the provider using --openrouter, --ollama, --bedrock, --azure, --vertex, --lmstudio, --openai-compatible, --gemini-cli, or --codex-cli.`
+						message: `Model ID "${modelId}" not found in Taskmaster's supported models. If this is a custom model, please specify the provider using --openrouter, --ollama, --bedrock, --azure, --vertex, --lmstudio, --openai-compatible, or --codex-cli.`
 					}
 				};
 			}

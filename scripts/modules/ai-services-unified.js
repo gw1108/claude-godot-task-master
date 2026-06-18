@@ -40,7 +40,6 @@ import {
 	BedrockAIProvider,
 	ClaudeCodeProvider,
 	CodexCliProvider,
-	GeminiCliProvider,
 	GoogleAIProvider,
 	GrokCliProvider,
 	GroqProvider,
@@ -85,7 +84,6 @@ const PROVIDERS = {
 	vertex: new VertexAIProvider(),
 	'claude-code': new ClaudeCodeProvider(),
 	'codex-cli': new CodexCliProvider(),
-	'gemini-cli': new GeminiCliProvider(),
 	'grok-cli': new GrokCliProvider()
 };
 

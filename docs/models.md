@@ -20,10 +20,6 @@
 | codex-cli   | gpt-5.1-codex-mini                             | 0.72      | 0          | 0           |
 | codex-cli   | gpt-5.2                                        | 0.8       | 0          | 0           |
 | mcp         | mcp-sampling                                   | —         | 0          | 0           |
-| gemini-cli  | gemini-3-flash-preview                         | —         | 0          | 0           |
-| gemini-cli  | gemini-3-pro-preview                           | 0.762     | 0          | 0           |
-| gemini-cli  | gemini-2.5-pro                                 | 0.72      | 0          | 0           |
-| gemini-cli  | gemini-2.5-flash                               | 0.71      | 0          | 0           |
 | grok-cli    | grok-4-latest                                  | 0.7       | 0          | 0           |
 | grok-cli    | grok-3-latest                                  | 0.65      | 0          | 0           |
 | grok-cli    | grok-3-fast                                    | 0.6       | 0          | 0           |
@@ -138,10 +134,6 @@
 | codex-cli   | gpt-5.1-codex-mini                           | 0.72      | 0          | 0           |
 | codex-cli   | gpt-5.2                                      | 0.8       | 0          | 0           |
 | mcp         | mcp-sampling                                 | —         | 0          | 0           |
-| gemini-cli  | gemini-3-flash-preview                       | —         | 0          | 0           |
-| gemini-cli  | gemini-3-pro-preview                         | 0.762     | 0          | 0           |
-| gemini-cli  | gemini-2.5-pro                               | 0.72      | 0          | 0           |
-| gemini-cli  | gemini-2.5-flash                             | 0.71      | 0          | 0           |
 | grok-cli    | grok-4-latest                                | 0.7       | 0          | 0           |
 | grok-cli    | grok-3-latest                                | 0.65      | 0          | 0           |
 | grok-cli    | grok-3-fast                                  | 0.6       | 0          | 0           |
@@ -198,10 +190,6 @@
 | codex-cli   | gpt-5.1-codex-mini                             | 0.72      | 0          | 0           |
 | codex-cli   | gpt-5.2                                        | 0.8       | 0          | 0           |
 | mcp         | mcp-sampling                                   | —         | 0          | 0           |
-| gemini-cli  | gemini-3-flash-preview                         | —         | 0          | 0           |
-| gemini-cli  | gemini-3-pro-preview                           | 0.762     | 0          | 0           |
-| gemini-cli  | gemini-2.5-pro                                 | 0.72      | 0          | 0           |
-| gemini-cli  | gemini-2.5-flash                               | 0.71      | 0          | 0           |
 | grok-cli    | grok-4-latest                                  | 0.7       | 0          | 0           |
 | grok-cli    | grok-3-latest                                  | 0.65      | 0          | 0           |
 | grok-cli    | grok-3-fast                                    | 0.6       | 0          | 0           |
