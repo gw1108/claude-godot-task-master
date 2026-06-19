@@ -30,5 +30,5 @@
 	},
 	"keywords": ["ai", "grok", "x.ai", "cli", "language-model", "provider"],
 	"files": ["dist/**/*", "README.md"],
-	"version": ""
+	"version": null
 }
