@@ -52,6 +52,22 @@ def filename_tag_instruction(run_id: str) -> str:
     )
 
 
+def to_at_reference(input_value: str) -> str:
+    """Convert a file path into an @-prefixed path relative to the project root.
+
+    Claude Code's '@' file reference inlines the file's contents directly into
+    the prompt, so the agent receives the document verbatim instead of being
+    told to read it from disk. Paths are emitted with forward slashes (POSIX)
+    because that is what the '@' resolver expects, including on Windows.
+    """
+    p = Path(input_value)
+    try:
+        rel = p.resolve().relative_to(PROJECT_ROOT)
+    except ValueError:
+        rel = p
+    return "@" + rel.as_posix()
+
+
 PIPELINE = [
     {
         "name": "refine-research-question",
@@ -63,9 +79,10 @@ PIPELINE = [
         "name": "research-codebase",
         "command": "research-codebase",
         "output_dir": "thoughts/shared/research",
+        "file_input": True,
         "context_template": (
-            "Stage 2 of 5 (research). Input question file: {input}. "
-            "Read the question file and conduct thorough codebase research. "
+            "Stage 2 of 5 (research). question file: {input}. "
+            "Use the question file and conduct thorough codebase research. "
             "Save output to thoughts/shared/research/."
         ),
     },
@@ -73,9 +90,10 @@ PIPELINE = [
         "name": "create_design",
         "command": "create_design",
         "output_dir": "thoughts/shared/claude-code-design",
+        "file_input": True,
         "context_template": (
-            "Stage 3 of 5 (design). Input research doc: {input}. "
-            "Read the research document and work with the user to settle on a design. "
+            "Stage 3 of 5 (design). research doc: {input}. "
+            "Use the research document and work with the user to settle on a design. "
             "Save output to thoughts/shared/claude-code-design/."
         ),
     },
@@ -83,9 +101,10 @@ PIPELINE = [
         "name": "create_plan",
         "command": "create_plan",
         "output_dir": "thoughts/shared/plans",
+        "file_input": True,
         "context_template": (
-            "Stage 4 of 5 (plan). Input design doc: {input}. "
-            "Read the design document, decide phases yourself, and write a detailed "
+            "Stage 4 of 5 (plan). design doc: {input}. "
+            "Use the design document, decide phases yourself, and write a detailed "
             "actionable implementation plan. Save output to thoughts/shared/plans/."
         ),
     },
@@ -94,9 +113,10 @@ PIPELINE = [
         "command": "implement_plan_yolo",
         "output_dir": None,
         "terminal": True,
+        "file_input": True,
         "context_template": (
-            "Stage 5 of 5 (implement). Input plan doc: {input}. "
-            "Read the implementation plan and execute every phase end-to-end with "
+            "Stage 5 of 5 (implement). plan doc: {input}. "
+            "Use the implementation plan and execute every phase end-to-end with "
             "verification, per the implement_plan_yolo skill."
         ),
     },
@@ -131,7 +151,10 @@ def detect_output_with_tag(output_dir: str, run_id: str, started_at: float) -> P
 
 def run_stage(stage: dict, input_value: str, run_id: str) -> Path | None:
     is_terminal = stage.get("terminal", False)
-    context = stage["context_template"].format(input=input_value)
+    formatted_input = (
+        to_at_reference(input_value) if stage.get("file_input") else input_value
+    )
+    context = stage["context_template"].format(input=formatted_input)
     if not is_terminal:
         context += filename_tag_instruction(run_id)
     claude_arg = f"/{stage['command']} {context}"
@@ -331,11 +354,11 @@ def main() -> None:
     print(f"  Plan implemented from: {current_input}")
     print(f"{'=' * 70}\n")
 
-    print("[pipeline] Auto-archiving thoughts/shared/...")
+    print(f"[pipeline] Auto-archiving thoughts/shared/ for run {run_id}...")
     try:
-        moved = archive_thoughts()
+        moved = archive_thoughts(run_id=run_id)
         if moved:
-            print(f"[pipeline] Archived {len(moved)} file(s):")
+            print(f"[pipeline] Sent {len(moved)} file(s) to the Recycle Bin:")
             print("\n".join(moved))
         else:
             print("[pipeline] Nothing to archive.")
